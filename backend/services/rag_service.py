@@ -3,20 +3,26 @@ from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 import os
 from typing import List, Optional
-import json
 import hashlib
 
 class RAGService:
     def __init__(self, persist_dir: str = "./data/chroma"):
         self.persist_dir = persist_dir
-        os.makedirs(persist_dir, exist_ok=True)
-        self.client = chromadb.PersistentClient(
-            path=persist_dir,
-            settings=Settings(anonymized_telemetry=False)
-        )
-        self.embedder = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        self._available = False
+        self.collection = None
+        self.embedder = None
         self.collection_name = "janNiti_policies"
-        self.collection = self._get_or_create_collection()
+        try:
+            os.makedirs(persist_dir, exist_ok=True)
+            self.client = chromadb.PersistentClient(
+                path=persist_dir,
+                settings=Settings(anonymized_telemetry=False)
+            )
+            self.embedder = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+            self.collection = self._get_or_create_collection()
+            self._available = True
+        except Exception as e:
+            print(f"[RAGService] WARNING: Failed to initialize: {e}. Running in degraded mode.")
 
     def _get_or_create_collection(self):
         try:
@@ -28,6 +34,8 @@ class RAGService:
             )
 
     def add_document(self, text: str, metadata: dict, doc_id: Optional[str] = None):
+        if not self._available:
+            return None
         if doc_id is None:
             doc_id = hashlib.md5(text.encode()).hexdigest()
         embedding = self.embedder.encode(text).tolist()
@@ -40,6 +48,8 @@ class RAGService:
         return doc_id
 
     def add_documents_batch(self, documents: List[str], metadatas: List[dict], ids: List[str]):
+        if not self._available:
+            return
         embeddings = self.embedder.encode(documents).tolist()
         self.collection.add(
             embeddings=embeddings,
@@ -49,6 +59,8 @@ class RAGService:
         )
 
     def search(self, query: str, top_k: int = 5, language: str = "en") -> List[dict]:
+        if not self._available:
+            return []
         query_embedding = self.embedder.encode(query).tolist()
         results = self.collection.query(
             query_embeddings=[query_embedding],
@@ -65,6 +77,8 @@ class RAGService:
         return documents
 
     def get_policy_context(self, policy_name: str) -> Optional[dict]:
+        if not self._available:
+            return None
         query_embedding = self.embedder.encode(policy_name).tolist()
         results = self.collection.query(
             query_embeddings=[query_embedding],
@@ -79,9 +93,13 @@ class RAGService:
         return None
 
     def count_documents(self) -> int:
+        if not self._available:
+            return 0
         return self.collection.count()
 
     def delete_collection(self):
+        if not self._available:
+            return
         self.client.delete_collection(self.collection_name)
         self.collection = self._get_or_create_collection()
 

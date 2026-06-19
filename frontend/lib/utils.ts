@@ -53,13 +53,6 @@ export async function apiFetch(endpoint: string, options?: RequestInit) {
   return body
 }
 
-export function formatNumber(num: number): string {
-  if (num >= 10000000) return `${(num / 10000000).toFixed(1)} Cr`
-  if (num >= 100000) return `${(num / 100000).toFixed(1)} Lakh`
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
-  return num.toString()
-}
-
 export function getConfidenceColor(confidence: string): string {
   switch (confidence?.toLowerCase()) {
     case 'high': return 'text-green-600 dark:text-green-400'

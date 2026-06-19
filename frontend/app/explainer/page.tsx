@@ -11,8 +11,8 @@ import { explainScheme, detectConditions, getELI5, searchSchemes } from '@/lib/a
 import {
   Search, Loader2, AlertTriangle, CheckCircle2, Info,
   FileText, BookOpen, Lightbulb, Users, FileCheck,
-  ClipboardList, CalendarClock, HelpCircle, ChevronDown,
-  ChevronUp, Volume2, Sparkles, Shield, AlertOctagon
+  ClipboardList, CalendarClock, HelpCircle,
+  Sparkles, Shield, AlertOctagon
 } from 'lucide-react'
 
 interface SchemeResult {

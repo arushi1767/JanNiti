@@ -1,6 +1,5 @@
 import os
 import requests
-import json
 from typing import Optional, List, Dict
 from datetime import datetime
 
@@ -13,19 +12,6 @@ SCHEME_DATASETS = {
     "pm-ayushman": "3b7e4c8a-1f5d-4a9b-8c3e-6d2f1a0b5c7d",
     "pm-ujjwala": "8c4a5e7d-3b2f-4c9a-a1e6-7d8b0f2c3e5a",
     "pm-kaushal": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
-}
-
-MINISTRY_SOURCES = {
-    "Ministry of Agriculture": "https://agriculture.gov.in",
-    "Ministry of Health": "https://mohfw.gov.in",
-    "Ministry of Rural Development": "https://rural.nic.in",
-    "Ministry of Education": "https://education.gov.in",
-    "Ministry of Social Justice": "https://socialjustice.nic.in",
-    "Ministry of Finance": "https://finance.gov.in",
-    "Ministry of Housing": "https://pmay-urban.gov.in",
-    "Ministry of Labour": "https://labour.gov.in",
-    "Ministry of Women & Child": "https://wcd.nic.in",
-    "Ministry of MSME": "https://msme.gov.in",
 }
 
 async def fetch_datagov_scheme_data(scheme_id: str) -> Optional[Dict]:

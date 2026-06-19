@@ -1,0 +1,2 @@
+2026-06-18 15:30:16,375 [sentence_transformers.base.model] INFO: No device provided, using cpu
+2026-06-18 15:30:17,094 [sentence_transformers.base.model] INFO: Loading SentenceTransformer model from sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2.

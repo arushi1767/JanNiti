@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LANGUAGES } from '@/lib/utils'
 import {
-  Menu, X, Search, Sun, Moon, Globe, ChevronDown, Home,
+  Menu, X, Sun, Moon, Globe, ChevronDown, Home,
   FileText, GitCompare, BarChart3, MessageCircle, Shield
 } from 'lucide-react'
 

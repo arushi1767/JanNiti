@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardTitle } from '@/components/ui/Card'
 import { compareSchemes, searchSchemes } from '@/lib/api'
-import { GitCompare, Loader2, ArrowRightLeft, CheckCircle2, AlertTriangle, Info, ExternalLink } from 'lucide-react'
+import { Loader2, ArrowRightLeft, CheckCircle2, Info } from 'lucide-react'
 
 export default function ComparePage() {
   const [scheme1, setScheme1] = useState('')

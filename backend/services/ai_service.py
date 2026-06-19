@@ -1,10 +1,12 @@
 import os
+import logging
 import ollama
 from typing import List, Optional
 from services.rag_service import rag_service
-from models.schemas import ExplainerResponse, ConditionItem, ComparisonItem, ELI5Response
+from models.schemas import ExplainerResponse, ELI5Response
 import json
-import re
+
+logger = logging.getLogger("janniti.ai")
 
 SYSTEM_PROMPT = """You are JanNiti, India's first Policy Literacy AI. Your mission is to help Indian citizens understand government schemes and policies in simple language.
 
@@ -18,15 +20,21 @@ Key rules:
 7. Support queries in Hindi and other Indian languages.
 8. Never provide legal advice - always recommend consulting official sources for final decisions."""
 
-CONFIDENCE_LEVELS = ["High", "Medium", "Low"]
+_ollama_client = ollama.Client(timeout=5.0)
 
 def llama_chat(messages, json_mode=False):
-    response = ollama.chat(
-        model="phi3:mini",
-        messages=messages,
-        format="json" if json_mode else None,
-    )
-    return response["message"]["content"]
+    try:
+        response = _ollama_client.chat(
+            model="phi3:mini",
+            messages=messages,
+            format="json" if json_mode else None,
+        )
+        return response["message"]["content"]
+    except Exception as e:
+        logger.warning(f"Ollama call failed: {e}")
+        if json_mode:
+            return json.dumps({"error": "AI service temporarily unavailable"})
+        return "I'm sorry, the AI service is currently unavailable. Please try again later."
 
 def _get_confidence(has_source: bool, has_recent_data: bool, rag_results_count: int) -> str:
     if has_source and has_recent_data and rag_results_count >= 3:
@@ -309,23 +317,4 @@ Always cite sources in your response. Use simple language."""
     }
 
 
-def translate_text(text: str, target_language: str) -> str:
-    if target_language == "en":
-        return text
 
-    prompt = f"""Translate the following text to {target_language}. Keep the meaning exactly the same. Use natural, conversational language.
-
-Text to translate:
-{text}
-
-Return only the translated text, nothing else."""
-
-    reply = llama_chat(
-        messages=[
-            {"role": "system", "content": "You are a professional translator for Indian languages."},
-            {"role": "user", "content": prompt}
-        ],
-        json_mode=False
-    )
-
-    return reply

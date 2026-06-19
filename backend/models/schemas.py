@@ -32,26 +32,6 @@ class ExplainerResponse(BaseModel):
     confidence: str
     disclaimer: str
 
-class ConditionItem(BaseModel):
-    text: str
-    severity: str
-    explanation: str
-
-class ConditionResponse(BaseModel):
-    conditions: List[ConditionItem]
-    summary: str
-
-class ComparisonItem(BaseModel):
-    aspect: str
-    scheme1_value: str
-    scheme2_value: str
-
-class ComparisonResponse(BaseModel):
-    scheme1_name: str
-    scheme2_name: str
-    comparisons: List[ComparisonItem]
-    recommendation: Optional[str]
-
 class DashboardStats(BaseModel):
     total_beneficiaries: str
     total_funds_disbursed: str

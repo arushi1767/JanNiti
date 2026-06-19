@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { VoiceButton } from '@/components/ui/VoiceButton'
 import { chatWithAI } from '@/lib/api'
-import { MessageCircle, Send, Loader2, Bot, User, Shield, AlertTriangle, Info } from 'lucide-react'
+import { Send, Loader2, Bot, User, Shield, AlertTriangle } from 'lucide-react'
 import { cn, getConfidenceColor } from '@/lib/utils'
 
 interface Message {

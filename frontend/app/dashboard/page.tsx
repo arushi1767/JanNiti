@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { getDashboardStats } from '@/lib/api'
-import { BarChart3, Loader2, Users, IndianRupee, MapPin, CalendarClock, Shield, TrendingUp, Award, Activity } from 'lucide-react'
+import { Loader2, Users, IndianRupee, MapPin, Shield, Award, Activity } from 'lucide-react'
 
 interface DashboardData {
   total_beneficiaries: string

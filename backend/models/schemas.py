@@ -1,20 +1,18 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
-class PolicyQuery(BaseModel):
-    query: str
-    language: str = "en"
-    state: Optional[str] = None
 
-class ChatMessage(BaseModel):
-    message: str
-    conversation_id: Optional[str] = None
-    language: str = "en"
+class PolicyQuery(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+    language: str = Field(default="en", pattern="^[a-z]{2}$")
+    state: Optional[str] = Field(default=None, max_length=100)
+
 
 class CompareRequest(BaseModel):
-    scheme1: str
-    scheme2: str
-    language: str = "en"
+    scheme1: str = Field(..., min_length=1, max_length=300)
+    scheme2: str = Field(..., min_length=1, max_length=300)
+    language: str = Field(default="en", pattern="^[a-z]{2}$")
+
 
 class ExplainerResponse(BaseModel):
     title: str
@@ -32,6 +30,7 @@ class ExplainerResponse(BaseModel):
     confidence: str
     disclaimer: str
 
+
 class DashboardStats(BaseModel):
     total_beneficiaries: str
     total_funds_disbursed: str
@@ -40,10 +39,12 @@ class DashboardStats(BaseModel):
     source: str
     top_schemes: Optional[List[dict]] = None
 
+
 class ChatResponse(BaseModel):
     reply: str
     sources: List[str]
     confidence: str
+
 
 class ELI5Response(BaseModel):
     story: str

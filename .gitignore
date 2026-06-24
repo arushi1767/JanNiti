@@ -1,21 +1,27 @@
-node_modules/
-.next/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
 .env
-.env.local
-*.egg-info/
-dist/
-build/
-.chroma/
-data/chroma/
-*.db
-.DS_Store
+.venv
 venv/
-.venv/
-backend/venv/
+*.egg-info/
 
-*.sqlite3
-# Logs
+# ChromaDB data (regenerated on startup)
+backend/data/chroma/
+
+# Logs (never commit runtime logs)
+backend/startup_err.txt
+backend/startup_out.txt
 *.log
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env.production
+
+# OS
+.DS_Store
 Thumbs.db

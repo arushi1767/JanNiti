@@ -3,9 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
 import { VoiceButton } from '@/components/ui/VoiceButton'
-import { chatWithAI } from '@/lib/api'
+import { API_BASE } from '@/lib/utils'
 import { Send, Loader2, Bot, User, Shield, AlertTriangle } from 'lucide-react'
 import { cn, getConfidenceColor } from '@/lib/utils'
 
@@ -45,19 +44,36 @@ export default function ChatbotPage() {
     const userMessage = input.trim()
     setInput('')
 
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    const updatedMessages: Message[] = [...messages, { role: 'user', content: userMessage }]
+    setMessages(updatedMessages)
     setLoading(true)
 
     try {
-      const res = await chatWithAI(userMessage)
+      // Build history (exclude the initial greeting, send last 10 turns)
+      const history = updatedMessages.slice(-11, -1).map(m => ({
+        role: m.role,
+        content: m.content,
+      }))
+
+      const res = await fetch(`${API_BASE}/api/chat/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          language: 'en',
+          history,
+        }),
+      })
+      const body = await res.json()
+      const data = body.success ? body.data : null
+
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: res.reply,
-        sources: res.sources,
-        confidence: res.confidence,
+        content: data?.reply || 'Sorry, I encountered an error. Please try again.',
+        sources: data?.sources,
+        confidence: data?.confidence,
       }])
-    } catch (err) {
-      console.error('Chatbot API error:', err)
+    } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Sorry, I encountered an error. Please try again.',
@@ -68,24 +84,14 @@ export default function ChatbotPage() {
     }
   }
 
-  const handleVoiceTranscript = (text: string) => {
-    setInput(text)
-  }
-
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">
-          AI Chatbot
-        </h1>
-        <p className="mt-3 text-lg text-gray-600 dark:text-gray-400">
-          Ask anything about government schemes in natural language
-        </p>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">AI Chatbot</h1>
+        <p className="mt-3 text-lg text-gray-600 dark:text-gray-400">Ask anything about government schemes in natural language</p>
       </div>
 
-      {/* Chat Container */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        {/* Messages */}
         <div className="h-[500px] overflow-y-auto p-4 md:p-6 space-y-4">
           {messages.map((msg, i) => (
             <div key={i} className={cn('flex gap-3', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
@@ -110,11 +116,9 @@ export default function ChatbotPage() {
                   </div>
                 )}
                 {msg.confidence && (
-                  <div className="mt-1">
-                    <span className={cn('text-xs font-medium', getConfidenceColor(msg.confidence))}>
-                      Confidence: {msg.confidence}
-                    </span>
-                  </div>
+                  <span className={cn('text-xs font-medium mt-1 block', getConfidenceColor(msg.confidence))}>
+                    Confidence: {msg.confidence}
+                  </span>
                 )}
               </div>
               {msg.role === 'user' && (
@@ -137,7 +141,6 @@ export default function ChatbotPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
         <div className="border-t border-gray-200 dark:border-gray-700 p-4">
           <div className="flex gap-3 items-end">
             <div className="flex-1">
@@ -150,7 +153,7 @@ export default function ChatbotPage() {
                 id="chat-input"
               />
             </div>
-            <VoiceButton onTranscript={handleVoiceTranscript} />
+            <VoiceButton onTranscript={(text) => setInput(text)} />
             <Button onClick={handleSend} disabled={loading || !input.trim()} className="h-14 px-6">
               <Send className="w-5 h-5" />
             </Button>
@@ -158,18 +161,12 @@ export default function ChatbotPage() {
         </div>
       </div>
 
-      {/* Suggested Questions */}
       <div className="mt-8">
-        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
-          Try asking:
-        </h3>
+        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Try asking:</h3>
         <div className="flex flex-wrap gap-2">
           {SUGGESTED_QUESTIONS.map((q, i) => (
-            <button
-              key={i}
-              onClick={() => { setInput(q) }}
-              className="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-sm text-gray-600 dark:text-gray-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-900/20 dark:hover:text-primary-400 transition-colors border border-gray-200 dark:border-gray-700"
-            >
+            <button key={i} onClick={() => setInput(q)}
+              className="px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 text-sm text-gray-600 dark:text-gray-400 hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-900/20 dark:hover:text-primary-400 transition-colors border border-gray-200 dark:border-gray-700">
               {q}
             </button>
           ))}
@@ -179,7 +176,7 @@ export default function ChatbotPage() {
       <div className="mt-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-200">
         <div className="flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>This AI assistant provides guidance based on publicly available information. Always verify with official government sources before applying for any scheme. The AI may make mistakes - please use your judgment.</span>
+          <span>This AI assistant provides guidance based on publicly available information. Always verify with official government sources before applying.</span>
         </div>
       </div>
     </div>

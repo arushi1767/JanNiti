@@ -4,6 +4,9 @@ from sentence_transformers import SentenceTransformer
 import os
 from typing import List, Optional
 import hashlib
+import logging
+
+logger = logging.getLogger("janniti.rag")
 
 class RAGService:
     def __init__(self, persist_dir: str = "./data/chroma"):
@@ -18,16 +21,17 @@ class RAGService:
                 path=persist_dir,
                 settings=Settings(anonymized_telemetry=False)
             )
-            self.embedder = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+            self.embedder = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
             self.collection = self._get_or_create_collection()
             self._available = True
+            logger.info(f"RAGService initialized. Documents in store: {self.count_documents()}")
         except Exception as e:
-            print(f"[RAGService] WARNING: Failed to initialize: {e}. Running in degraded mode.")
+            logger.error(f"RAGService init failed: {e}. Running in degraded mode.")
 
     def _get_or_create_collection(self):
         try:
             return self.client.get_collection(self.collection_name)
-        except:
+        except Exception:
             return self.client.create_collection(
                 name=self.collection_name,
                 metadata={"hnsw:space": "cosine"}
@@ -61,46 +65,65 @@ class RAGService:
     def search(self, query: str, top_k: int = 5, language: str = "en") -> List[dict]:
         if not self._available:
             return []
-        query_embedding = self.embedder.encode(query).tolist()
-        results = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k
-        )
-        documents = []
-        if results['documents']:
-            for i, doc in enumerate(results['documents'][0]):
-                documents.append({
-                    'text': doc,
-                    'metadata': results['metadatas'][0][i] if results['metadatas'] else {},
-                    'distance': results['distances'][0][i] if results['distances'] else 0
-                })
-        return documents
+        try:
+            count = self.count_documents()
+            if count == 0:
+                return []
+            n = min(top_k, count)
+            query_embedding = self.embedder.encode(query).tolist()
+            results = self.collection.query(
+                query_embeddings=[query_embedding],
+                n_results=n
+            )
+            documents = []
+            if results["documents"]:
+                for i, doc in enumerate(results["documents"][0]):
+                    documents.append({
+                        "text": doc,
+                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
+                        "distance": results["distances"][0][i] if results["distances"] else 0,
+                    })
+            return documents
+        except Exception as e:
+            logger.error(f"RAG search failed: {e}")
+            return []
 
     def get_policy_context(self, policy_name: str) -> Optional[dict]:
+        """Simple semantic search for a policy by name."""
         if not self._available:
             return None
-        query_embedding = self.embedder.encode(policy_name).tolist()
-        results = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=1,
-            where={"$or": [{"name": policy_name}, {"name": {"$contains": policy_name}}]}
-        )
-        if results['documents'] and results['documents'][0]:
-            return {
-                'text': results['documents'][0][0],
-                'metadata': results['metadatas'][0][0] if results['metadatas'] else {}
-            }
+        results = self.search(policy_name, top_k=1)
+        if results:
+            return {"text": results[0]["text"], "metadata": results[0]["metadata"]}
         return None
 
-    def count_documents(self) -> int:
+    '''def count_documents(self) -> int:
         if not self._available:
             return 0
-        return self.collection.count()
+        try:
+            return self.collection.count()
+        except Exception:
+            return 0
+'''
+    def count_documents(self) -> int:
+        print("AVAILABLE =", self._available)
+
+        if not self._available:
+            return 0
+
+        try:
+            count = self.collection.count()
+            print("COUNT =", count)
+            return count
+        except Exception as e:
+            print("COUNT ERROR =", repr(e))
+            raise 
 
     def delete_collection(self):
         if not self._available:
             return
         self.client.delete_collection(self.collection_name)
         self.collection = self._get_or_create_collection()
+
 
 rag_service = RAGService()

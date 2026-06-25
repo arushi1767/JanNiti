@@ -1,0 +1,21 @@
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.env
+.env.local
+*.egg-info/
+dist/
+build/
+.chroma/
+data/chroma/
+*.db
+.DS_Store
+venv/
+.venv/
+backend/venv/
+
+*.sqlite3
+# Logs
+*.log
+Thumbs.db

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LANGUAGES } from '@/lib/utils'
-import { useLang, LangCode } from '@/lib/i18n'
+import { useI18n, LangCode } from '@/lib/i18n'
 import {
   Menu, X, Sun, Moon, Globe, ChevronDown, Home,
   FileText, GitCompare, BarChart3, MessageCircle, Shield
@@ -23,7 +23,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isDark, setIsDark] = useState(false)
   const [showLang, setShowLang] = useState(false)
-  const { lang, setLang, t } = useLang()
+  const { lang, setLang, t } = useI18n()
   const currentLang = LANGUAGES.find(l => l.code === lang) || LANGUAGES[0]
   const pathname = usePathname()
 
@@ -82,7 +82,7 @@ export function Navbar() {
                 aria-expanded={showLang}
               >
                 <Globe className="w-4 h-4" />
-                <span className="hidden sm:inline">{currentLang.label}: {currentLang.nativeName}</span>
+                <span className="hidden sm:inline">{currentLang.nativeName}</span>
                 <ChevronDown className="w-3 h-3" />
               </button>
               {showLang && (

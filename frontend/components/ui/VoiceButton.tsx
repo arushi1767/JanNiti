@@ -37,7 +37,7 @@ export function VoiceButton({ onTranscript, language = 'en', className }: VoiceB
           formData.append('audio', blob, 'recording.webm')
           formData.append('language', language)
 
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/voice/stt`, {
+          const response = await fetch('http://localhost:8000/api/voice/stt', {
             method: 'POST',
             body: formData,
           })

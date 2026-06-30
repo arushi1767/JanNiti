@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import config
-from routers import explainer, chat, compare, dashboard, voice
+from routers import explainer, chat, compare, dashboard, voice, transliterate
 
 app = FastAPI(
     title="JanNiti - India's Policy Literacy Platform",
@@ -20,11 +20,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    # If the configured origins include a wildcard, credentialed CORS must
-    # be disabled; browsers will block requests with credentials when
-    # Access-Control-Allow-Origin is '*'. See bug #8.
     allow_origins=config.CORS_ORIGINS,      # env-driven (bug #8)
-    allow_credentials=(False if "*" in config.CORS_ORIGINS else True),
+    allow_credentials=True,
     allow_methods=["*"], allow_headers=["*"],
 )
 
@@ -33,6 +30,7 @@ app.include_router(chat.router)
 app.include_router(compare.router)
 app.include_router(dashboard.router)
 app.include_router(voice.router)
+app.include_router(transliterate.router)
 
 
 @app.on_event("startup")

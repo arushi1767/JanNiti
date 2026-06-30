@@ -33,14 +33,9 @@ _RECENT_YEARS = {str(datetime.now().year), str(datetime.now().year - 1)}
 
 
 def _lang(language: str) -> str:
-    name = {
-        "hi": "Hindi", "bn": "Bengali", "as": "Assamese", "brx": "Bodo",
-        "doi": "Dogri", "gu": "Gujarati", "kn": "Kannada", "ks": "Kashmiri",
-        "kok": "Konkani", "mai": "Maithili", "ml": "Malayalam", "mni": "Manipuri",
-        "mr": "Marathi", "ne": "Nepali", "or": "Odia", "pa": "Punjabi",
-        "sa": "Sanskrit", "sat": "Santhali", "sd": "Sindhi", "ta": "Tamil",
-        "te": "Telugu", "ur": "Urdu",
-    }.get(language, "English" if language == "en" else language)
+    name = {"hi": "Hindi", "bn": "Bengali", "ta": "Tamil", "te": "Telugu",
+            "mr": "Marathi", "gu": "Gujarati", "kn": "Kannada", "ml": "Malayalam",
+            "pa": "Punjabi", "or": "Odia"}.get(language, "English" if language == "en" else language)
     return f"Respond entirely in {name}."
 
 
@@ -63,42 +58,25 @@ def _fallback_explainer(query: str, msg: str) -> ExplainerResponse:
 
 
 def generate_explainer(query: str, language: str = "en", state: Optional[str] = None) -> ExplainerResponse:
-    rag_results = rag_service.search(query, top_k=10, language=language)
-    
+    rag_results = rag_service.search(query, top_k=5, language=language)
+    context = "\n\n".join(r["text"] for r in rag_results)
     if not rag_results:
         return _fallback_explainer(query, "This information is not in the official records currently loaded into JanNiti.")
-
-    # Build context with section labels for clarity
-    context_parts = []
-    for r in rag_results:
-        text = r["text"]
-        section = (r.get("metadata") or {}).get("section", "Details")
-        context_parts.append(f"[{section}]\n{text}")
-    context = "\n\n".join(context_parts)
 
     prompt = f"""{_lang(language)}
 
 Based ONLY on the official context below, explain this scheme simply (Grade 6-8).
-Extract and structure the information into these clear sections:
-- What is it?
-- Why was it introduced?
-- Benefits (as a bullet list)
-- Who is eligible? (as a bullet list)
-- What documents do I need? (as a bullet list)
-- How do I apply?
-- Important dates or deadlines
 
-Context (from official documents):
+Context:
 {context}
 
 User query: {query}
 {f"State: {state}" if state else ""}
 
-Return only a compact JSON object with keys: title, what_is, why_introduced, benefits (array of 3-5 short items), eligibility (array of 3-5 short items),
-documents (array of 4-6 short items), how_to_apply (string), deadlines (string or null), misunderstood_clauses (array),
+Return JSON with keys: title, what_is, why_introduced, benefits (array), eligibility (array),
+documents (array), how_to_apply (string), deadlines (string or null), misunderstood_clauses (array),
 source, ministry, last_updated, confidence (High/Medium/Low),
-disclaimer ("This is AI-generated guidance based on publicly available information. Please verify with official government sources before applying.").
-Do not add any extra text, explanation, or markdown outside of the JSON object."""
+disclaimer ("This is AI-generated guidance based on publicly available information. Please verify with official government sources before applying.")."""
 
     content = llm_chat(
         messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
@@ -129,27 +107,16 @@ Do not add any extra text, explanation, or markdown outside of the JSON object."
 
 def detect_conditions(query: str, language: str = "en") -> dict:
     rag_results = rag_service.search(query, top_k=10, language=language)
-    
-    # Build context with section labels
-    context_parts = []
-    for r in rag_results:
-        text = r["text"]
-        section = (r.get("metadata") or {}).get("section", "Details")
-        context_parts.append(f"[{section}]\n{text}")
-    context = "\n\n".join(context_parts)
-    
+    context = "\n\n".join(r["text"] for r in rag_results)
     prompt = f"""{_lang(language)}
 
-From the scheme details below, identify and list IMPORTANT CONDITIONS, hidden clauses, obligations, exclusions, and penalties that applicants MUST know before applying.
+From the scheme text below, list hidden conditions, exclusions, obligations, and penalties.
 
 Scheme text:
 {context if context else query}
 
-Return JSON: {{"conditions": [{{"text":"...","severity":"green|yellow|red","explanation":"..."}}], "summary": "..."}}.
-Severity levels:
-- green: General information and benefits
-- yellow: Important details to read carefully
-- red: Penalties, disqualifications, exclusions that could affect eligibility"""
+Return JSON: {{"conditions": [{{"text","severity"(green|yellow|red),"explanation"}}], "summary": "..."}}.
+green=general info, yellow=read carefully, red=penalties/exclusions/disqualification."""
     data = parse_json_or_none(llm_chat(
         messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
         json_mode=True))
@@ -204,6 +171,39 @@ Return JSON: {{"scheme1_name","scheme2_name","comparisons":[{{"aspect","scheme1_
     return data
 
 
+def recommend_for_profile(scheme1: str, scheme2: str, profile: dict, language: str = "en") -> dict:
+    """Given two schemes and a citizen's profile, recommend which fits better — grounded in the documents."""
+    c1 = "\n\n".join(r["text"] for r in rag_service.search(scheme1, top_k=5, language=language))
+    c2 = "\n\n".join(r["text"] for r in rag_service.search(scheme2, top_k=5, language=language))
+    # build a readable profile line, skipping blanks
+    parts = []
+    for label, key in [("Age", "age"), ("State", "state"), ("Gender", "gender"),
+                       ("Occupation", "occupation"), ("Annual income", "income"),
+                       ("Category", "category")]:
+        v = (profile or {}).get(key)
+        if v: parts.append(f"{label}: {v}")
+    profile_str = "; ".join(parts) if parts else "No specific details provided."
+    prompt = f"""{_lang(language)}
+
+A citizen wants to know which of these two schemes suits THEM better.
+Their details — {profile_str}
+
+SCHEME 1: {scheme1}
+Official context: {c1 or "No official records found."}
+
+SCHEME 2: {scheme2}
+Official context: {c2 or "No official records found."}
+
+Using ONLY the official context, decide which scheme fits this person better based on their details (eligibility, income limits, age, occupation, category, state). Speak in warm, plain language — no markdown symbols, no #, no **bold**, no tables. Explain WHY in 2-4 short sentences a citizen can understand. If the documents don't contain enough to decide, say so honestly and tell them what detail or official source would help.
+Return JSON: {{"recommended_scheme","reasoning"}}."""
+    data = parse_json_or_none(llm_chat(
+        messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
+        json_mode=True))
+    if data is None:
+        return {"recommended_scheme": "", "reasoning": "Recommendation is unavailable right now. Please try again."}
+    return data
+
+
 def chat_with_ai(message: str, conversation_history: Optional[List[dict]] = None, language: str = "en") -> dict:
     rag_results = rag_service.search(message, top_k=8, language=language)
     context = "\n\n".join(r["text"] for r in rag_results)
@@ -211,10 +211,11 @@ def chat_with_ai(message: str, conversation_history: Optional[List[dict]] = None
 {_lang(language)}
 
 HOW TO WRITE (very important):
-- Speak like a real, kind person at a help desk. Plain conversational sentences only.
-- Absolutely NO markdown: no #, no ##, no **bold**, no | tables |, no --- lines, no bullet symbols, no emojis.
-- No phrases like "as an AI" or "based on the context". Just help directly and warmly.
-- Keep it fairly short and easy to read for someone with limited education.
+- Be CRISP and SHORT. Most answers should be 3 to 6 simple points, not long paragraphs. A citizen will not read a wall of text.
+- Lead with the direct answer in one short line. Then give the key facts as short, separate points, each on its own line starting with a dash (-).
+- Each point should be one short sentence. Keep total answer under about 120 words unless the person asks for more detail.
+- Plain, warm, everyday language for someone with limited education. No #, no **bold**, no | tables |, no --- lines, no emojis. A simple dash (-) at the start of each point is fine.
+- No phrases like "as an AI" or "based on the context". Just help directly.
 
 MATCHING SCHEMES:
 - Citizens use everyday names. Treat these as the SAME scheme: "PM Kisan" / "PM-KISAN" / "Pradhan Mantri Kisan Samman Nidhi" / "Kisan Samman Nidhi" all mean the PM-KISAN farmer income scheme. Match flexibly on meaning, not exact spelling.
@@ -224,7 +225,7 @@ MATCHING SCHEMES:
 Official information you can use:
 {context}
 
-End with one short, plain sentence reminding them to confirm on the official website before applying."""
+End with ONE short line: remind them to confirm on the official website before applying. Keep the whole reply brief and scannable."""
     messages = [{"role": "system", "content": system_msg}]
     if conversation_history:
         for m in conversation_history[-10:]:

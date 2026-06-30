@@ -2,15 +2,14 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { VoiceButton } from '@/components/ui/VoiceButton'
 import { SourceBadge } from '@/components/ui/SourceBadge'
-import { explainScheme, detectConditions, getELI5, searchSchemes } from '@/lib/api'
+import { explainScheme, detectConditions, getELI5 } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
+import { SCHEMES, schemeLabel, findScheme } from '@/lib/schemes'
 import {
-  Search, Loader2, AlertTriangle, CheckCircle2, Info,
+  Loader2, AlertTriangle, CheckCircle2, Info, ExternalLink,
   FileText, BookOpen, Lightbulb, Users, FileCheck,
   ClipboardList, CalendarClock, HelpCircle,
   Sparkles, Shield, AlertOctagon
@@ -65,11 +64,11 @@ export default function ExplainerPage() {
   const [result, setResult] = useState<SchemeResult | null>(null)
   const [eli5, setEli5] = useState<ELI5Result | null>(null)
   const [conditions, setConditions] = useState<{ conditions: Condition[], summary: string } | null>(null)
-  const [suggestions, setSuggestions] = useState<any[]>([])
   const [error, setError] = useState('')
 
-  const handleSearch = async () => {
-    if (!query.trim()) return
+  const handleSearch = async (override?: string) => {
+    const q = (override ?? query).trim()
+    if (!q) return
     setLoading(true)
     setError('')
     setResult(null)
@@ -79,7 +78,7 @@ export default function ExplainerPage() {
 
     try {
       // Only the explanation loads on search -> fast. Other tabs load on demand.
-      const explainResult = await explainScheme({ query: query.trim(), language: lang })
+      const explainResult = await explainScheme({ query: q, language: lang })
       setResult(explainResult)
     } catch (err) {
       console.error('Explainer API error:', err)
@@ -105,26 +104,8 @@ export default function ExplainerPage() {
     } catch (err) { console.error('Conditions error:', err) }
   }
 
-  const handleQueryChange = async (value: string) => {
-    setQuery(value)
-    if (value.length > 2) {
-      try {
-        const res = await searchSchemes(value, lang)
-        setSuggestions(res.results || [])
-      } catch { setSuggestions([]) }
-    } else {
-      setSuggestions([])
-    }
-  }
 
-  const selectSuggestion = (name: string) => {
-    setQuery(name)
-    setSuggestions([])
-  }
 
-  const handleVoiceTranscript = (text: string) => {
-    setQuery(text)
-  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -137,41 +118,21 @@ export default function ExplainerPage() {
         </p>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-8">
-        <div className="flex gap-3 items-start">
-          <div className="flex-1 relative">
-            <Input
-              value={query}
-              onChange={(e) => handleQueryChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder={t('search_placeholder')}
-              className="pl-12 text-lg py-4"
-              id="scheme-search"
-            />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            {suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-10 max-h-60 overflow-y-auto">
-                {suggestions.map((s: any, i: number) => (
-                  <button
-                    key={i}
-                    onClick={() => selectSuggestion(s.name)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-100 dark:border-gray-700 last:border-0"
-                  >
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{s.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">{s.ministry}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <VoiceButton onTranscript={handleVoiceTranscript} language={lang} className="shrink-0" />
-        </div>
-        <div className="flex justify-center mt-4">
-          <Button onClick={handleSearch} disabled={loading || !query.trim()} size="lg" className="px-10">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Search className="w-5 h-5 mr-2" />}
-            {loading ? t('researching') : t('explain_btn')}
-          </Button>
+      {/* Scheme picker (one-click, in the selected language) */}
+      <div className="mb-8">
+        <p className="text-center text-gray-600 dark:text-gray-400 mb-3">{t('explainer_pick')}</p>
+        <div className="max-w-xl mx-auto">
+          <select
+            value={query}
+            onChange={(e) => { const id = e.target.value; setQuery(id); if (id) handleSearch(id) }}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
+            aria-label={t('choose_scheme')}
+          >
+            <option value="">{t('choose_scheme')}</option>
+            {SCHEMES.map((sc) => (
+              <option key={sc.id} value={sc.id}>{schemeLabel(sc, lang)}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -205,6 +166,26 @@ export default function ExplainerPage() {
               </div>
             </div>
           </div>
+
+          {/* Apply Now -> official government portal (new tab) */}
+          {findScheme(query) && (
+            <a
+              href={findScheme(query)!.apply}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl px-6 py-5 transition-colors shadow-sm"
+            >
+              <div>
+                <div className="text-lg md:text-xl font-bold flex items-center gap-2">
+                  <ExternalLink className="w-5 h-5" /> {t('apply_now')}
+                </div>
+                <div className="text-sm text-green-100 mt-0.5">{t('apply_sub')}</div>
+              </div>
+              <span className="hidden sm:inline text-sm font-mono bg-green-700/60 rounded-lg px-3 py-1.5 truncate max-w-[16rem]">
+                {findScheme(query)!.apply.replace('https://', '')}
+              </span>
+            </a>
+          )}
 
           {/* Tab Navigation */}
           <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">

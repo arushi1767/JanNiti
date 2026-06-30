@@ -27,8 +27,8 @@ export async function getELI5(query: PolicyQuery) {
   })
 }
 
-export async function searchSchemes(q: string, language: string = 'en') {
-  return apiFetch(`/api/explainer/search?q=${encodeURIComponent(q)}&language=${encodeURIComponent(language)}`)
+export async function searchSchemes(q: string) {
+  return apiFetch(`/api/explainer/search?q=${encodeURIComponent(q)}`)
 }
 
 export type ChatTurn = { role: 'user' | 'assistant'; content: string }
@@ -59,4 +59,24 @@ export async function compareSchemes(scheme1: string, scheme2: string, language:
 
 export async function getDashboardStats() {
   return apiFetch('/api/dashboard/stats')
+}
+
+export async function recommendForProfile(scheme1: string, scheme2: string, profile: Record<string, string>, language: string = 'en') {
+  return apiFetch('/api/compare/recommend', {
+    method: 'POST',
+    body: JSON.stringify({ scheme1, scheme2, profile, language }),
+  })
+}
+
+// Latin -> Indic transliteration suggestions (proxied via backend to avoid CORS).
+export async function transliterate(text: string, lang: string): Promise<string[]> {
+  if (!text || lang === 'en') return []
+  try {
+    const res = await apiFetch(
+      `/api/transliterate?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`
+    )
+    return (res?.suggestions as string[]) || []
+  } catch {
+    return []
+  }
 }

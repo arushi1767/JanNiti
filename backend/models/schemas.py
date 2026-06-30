@@ -26,6 +26,13 @@ class CompareRequest(BaseModel):
     language: str = "en"
 
 
+class RecommendRequest(BaseModel):
+    scheme1: str
+    scheme2: str
+    profile: dict = {}
+    language: str = "en"
+
+
 class ExplainerResponse(BaseModel):
     title: str
     what_is: str

@@ -6,29 +6,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const LANGUAGES = [
-  { code: 'en', name: 'English', nativeName: 'English', label: 'Language' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', label: 'भाषा' },
-  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', label: 'ভাষা' },
-  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া', label: 'ভাষা' },
-  { code: 'brx', name: 'Bodo', nativeName: 'बर्र', label: 'बिसहाय' },
-  { code: 'doi', name: 'Dogri', nativeName: 'डोगरी', label: 'भासा' },
-  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', label: 'ભાષા' },
-  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', label: 'ಭಾಷೆ' },
-  { code: 'ks', name: 'Kashmiri', nativeName: 'कॉशुर', label: 'जायज़' },
-  { code: 'kok', name: 'Konkani', nativeName: 'कोंकणी', label: 'भाषा' },
-  { code: 'mai', name: 'Maithili', nativeName: 'मैथिली', label: 'भाषा' },
-  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', label: 'ഭാഷ' },
-  { code: 'mni', name: 'Manipuri', nativeName: 'মেইতেইলোন্', label: 'ꯂꯥꯏ' },
-  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', label: 'भाषा' },
-  { code: 'ne', name: 'Nepali', nativeName: 'नेपाली', label: 'भाषा' },
-  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', label: 'ଭାଷା' },
-  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', label: 'ਭਾਸ਼ਾ' },
-  { code: 'sa', name: 'Sanskrit', nativeName: 'संस्कृतम्', label: 'भाषा' },
-  { code: 'sat', name: 'Santhali', nativeName: 'ᱥᱟᱱᱛᱟᱲᱤ', label: 'ᱵᱟᱥᱟ' },
-  { code: 'sd', name: 'Sindhi', nativeName: 'سنڌي', label: 'ٻولي' },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', label: 'மொழி' },
-  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', label: 'భాష' },
-  { code: 'ur', name: 'Urdu', nativeName: 'اردو', label: 'زبان' },
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
 ]
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'

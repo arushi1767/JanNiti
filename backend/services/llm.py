@@ -41,8 +41,8 @@ def _get_client():
             return None, None
         try:
             from anthropic import Anthropic
-        except Exception as e:
-            logger.warning(f"Anthropic SDK not available: {e}")
+        except ImportError:
+            logger.error("LLM_PROVIDER=anthropic but the 'anthropic' package is not installed. Run: pip install anthropic")
             return None, None
         _client = Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=config.LLM_TIMEOUT)
         _client_kind = "anthropic"
@@ -52,8 +52,8 @@ def _get_client():
             return None, None
         try:
             from openai import OpenAI
-        except Exception as e:
-            logger.warning(f"OpenAI SDK not available: {e}")
+        except ImportError:
+            logger.error("LLM_PROVIDER=openai but the 'openai' package is not installed. Run: pip install openai")
             return None, None
         _client = OpenAI(api_key=config.OPENAI_API_KEY, timeout=config.LLM_TIMEOUT)
         _client_kind = "openai"

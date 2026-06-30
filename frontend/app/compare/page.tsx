@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardTitle } from '@/components/ui/Card'
-import { compareSchemes, searchSchemes } from '@/lib/api'
+import { compareSchemes, recommendForProfile } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
-import { Loader2, ArrowRightLeft, CheckCircle2, Info } from 'lucide-react'
+import { SCHEMES, schemeLabel } from '@/lib/schemes'
+import { Loader2, ArrowRightLeft, CheckCircle2, Info, Sparkles } from 'lucide-react'
 
 export default function ComparePage() {
   const { lang, t } = useLang()
@@ -15,14 +16,32 @@ export default function ComparePage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
-  const [suggestions1, setSuggestions1] = useState<any[]>([])
-  const [suggestions2, setSuggestions2] = useState<any[]>([])
+  const [profile, setProfile] = useState<Record<string, string>>({})
+  const [recLoading, setRecLoading] = useState(false)
+  const [rec, setRec] = useState<any>(null)
+
+  const handleRecommend = async () => {
+    if (!result) return
+    setRecLoading(true)
+    setRec(null)
+    try {
+      const res = await recommendForProfile(result.scheme1_name || scheme1, result.scheme2_name || scheme2, profile, lang)
+      setRec(res)
+    } catch (err) {
+      console.error('Recommend API error:', err)
+      setRec({ reasoning: 'Could not generate a suggestion right now. Please try again.' })
+    } finally {
+      setRecLoading(false)
+    }
+  }
+  const setP = (k: string, v: string) => setProfile(prev => ({ ...prev, [k]: v }))
 
   const handleCompare = async () => {
     if (!scheme1.trim() || !scheme2.trim()) return
     setLoading(true)
     setError('')
     setResult(null)
+    setRec(null)
 
     try {
       const res = await compareSchemes(scheme1.trim(), scheme2.trim(), lang)
@@ -35,82 +54,52 @@ export default function ComparePage() {
     }
   }
 
-  const handleSearch1 = async (val: string) => {
-    setScheme1(val)
-    if (val.length > 2) {
-      const res = await searchSchemes(val, lang)
-      setSuggestions1(res.results || [])
-    } else setSuggestions1([])
-  }
 
-  const handleSearch2 = async (val: string) => {
-    setScheme2(val)
-    if (val.length > 2) {
-      const res = await searchSchemes(val, lang)
-      setSuggestions2(res.results || [])
-    } else setSuggestions2([])
-  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="text-center mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">
-          Compare Policies
+          {t('compare_title')}
         </h1>
         <p className="mt-3 text-lg text-gray-600 dark:text-gray-400">
-          Side-by-side comparison of any two government schemes
+          {t('compare_sub')}
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4 mb-8">
-        <div className="relative">
-          <Input
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('compare_scheme1')}</label>
+          <select
             value={scheme1}
-            onChange={(e) => handleSearch1(e.target.value)}
-            placeholder="First scheme... e.g., PM Kisan"
-            className="text-lg"
-            id="scheme1"
-            label="Scheme 1"
-          />
-          {suggestions1.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-              {suggestions1.map((s: any, i: number) => (
-                <button key={i} onClick={() => { setScheme1(s.name); setSuggestions1([]) }}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b last:border-0">
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-xs text-gray-500 ml-2">{s.ministry}</span>
-                </button>
-              ))}
-            </div>
-          )}
+            onChange={(e) => setScheme1(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">{t('choose_scheme')}</option>
+            {SCHEMES.map((sc) => (
+              <option key={sc.id} value={sc.id}>{schemeLabel(sc, lang)}</option>
+            ))}
+          </select>
         </div>
-        <div className="relative">
-          <Input
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('compare_scheme2')}</label>
+          <select
             value={scheme2}
-            onChange={(e) => handleSearch2(e.target.value)}
-            placeholder="Second scheme... e.g., Ayushman Bharat"
-            className="text-lg"
-            id="scheme2"
-            label="Scheme 2"
-          />
-          {suggestions2.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-              {suggestions2.map((s: any, i: number) => (
-                <button key={i} onClick={() => { setScheme2(s.name); setSuggestions2([]) }}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b last:border-0">
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-xs text-gray-500 ml-2">{s.ministry}</span>
-                </button>
-              ))}
-            </div>
-          )}
+            onChange={(e) => setScheme2(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">{t('choose_scheme')}</option>
+            {SCHEMES.map((sc) => (
+              <option key={sc.id} value={sc.id}>{schemeLabel(sc, lang)}</option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="flex justify-center mb-8">
         <Button onClick={handleCompare} disabled={loading || !scheme1.trim() || !scheme2.trim()} size="lg" className="px-10">
           {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ArrowRightLeft className="w-5 h-5 mr-2" />}
-          {loading ? 'Comparing...' : 'Compare Schemes'}
+          {loading ? t('compare_loading') : t('compare_btn')}
         </Button>
       </div>
 
@@ -182,6 +171,40 @@ export default function ComparePage() {
               </CardContent>
             </Card>
           )}
+
+          {/* Profile-based recommendation */}
+          <Card className="border-primary-200 dark:border-primary-800">
+            <CardTitle className="flex items-center gap-2 mb-1 text-primary-700 dark:text-primary-400">
+              <Sparkles className="w-5 h-5" />
+              {t('rec_heading')}
+            </CardTitle>
+            <CardContent>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('rec_sub')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <Input placeholder={t('rec_age')} value={profile.age || ''} onChange={(e) => setP('age', e.target.value)} />
+                <Input placeholder={t('rec_state')} value={profile.state || ''} onChange={(e) => setP('state', e.target.value)} />
+                <Input placeholder={t('rec_gender')} value={profile.gender || ''} onChange={(e) => setP('gender', e.target.value)} />
+                <Input placeholder={t('rec_occupation')} value={profile.occupation || ''} onChange={(e) => setP('occupation', e.target.value)} />
+                <Input placeholder={t('rec_income')} value={profile.income || ''} onChange={(e) => setP('income', e.target.value)} />
+                <Input placeholder={t('rec_category')} value={profile.category || ''} onChange={(e) => setP('category', e.target.value)} />
+              </div>
+              <Button onClick={handleRecommend} disabled={recLoading}>
+                {recLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                {recLoading ? t('rec_loading') : t('rec_btn')}
+              </Button>
+
+              {rec && !recLoading && (
+                <div className="mt-5 p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2 mb-2 text-green-700 dark:text-green-400 font-semibold">
+                    <CheckCircle2 className="w-5 h-5" />
+                    {t('rec_result_title')}
+                    {rec.recommended_scheme ? <span>: {rec.recommended_scheme}</span> : null}
+                  </div>
+                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{rec.reasoning}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {(!result.comparisons || result.comparisons.length === 0) && (
             <Card>

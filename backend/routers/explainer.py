@@ -52,12 +52,9 @@ async def eli5(query: PolicyQuery):
 
 
 @router.get("/search")
-async def search(
-    q: str = Query(..., description="Search text"),
-    language: str = Query("en", description="Language code for the query"),
-):
+async def search(q: str = Query(..., description="Search text")):
     try:
-        results = await search_schemes(q, language)
+        results = await search_schemes(q)
         return success_response({"results": results})
     except Exception as e:
         logger.error(f"Search failed: {e}", exc_info=True)

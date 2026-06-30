@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { TransliterateInput } from '@/components/ui/TransliterateInput'
 import { Card } from '@/components/ui/Card'
 import { VoiceButton } from '@/components/ui/VoiceButton'
 import { chatWithAI } from '@/lib/api'
-import { useLang } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
 import { Send, Loader2, Bot, User, Shield, AlertTriangle } from 'lucide-react'
 import { cn, getConfidenceColor } from '@/lib/utils'
 
@@ -17,23 +17,14 @@ interface Message {
   confidence?: string
 }
 
-const SUGGESTED_QUESTIONS = [
-  'Do I qualify for PM Kisan?',
-  'What is the catch in Ayushman Bharat?',
-  'What happens if I provide wrong information in MGNREGA?',
-  'Compare PM Awas Yojana with PM SVANidhi',
-  'How to apply for PM Ujjwala Yojana?',
-  'Is there any hidden penalty in PM Mudra Yojana?',
-]
-
 export default function ChatbotPage() {
+  const { lang, t } = useI18n()
+  const SUGGESTED_QUESTIONS = [
+    t('chat_q1'), t('chat_q2'), t('chat_q3'), t('chat_q4'), t('chat_q5'), t('chat_q6'),
+  ]
   const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Namaste! I am JanNiti AI assistant. I can answer your questions about any Indian government scheme in simple language. Try asking "Do I qualify for PM Kisan?" or "What is the catch in Ayushman Bharat?"',
-    },
+    { role: 'assistant', content: t('chat_greeting') },
   ])
-  const { lang, t } = useLang()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -41,6 +32,13 @@ export default function ChatbotPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // refresh the greeting when the user switches language (before any chat starts)
+  useEffect(() => {
+    setMessages((m) => (m.length === 1 && m[0].role === 'assistant'
+      ? [{ role: 'assistant', content: t('chat_greeting') }] : m))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang])
 
   const handleSend = async () => {
     if (!input.trim() || loading) return
@@ -143,16 +141,16 @@ export default function ChatbotPage() {
         <div className="border-t border-gray-200 dark:border-gray-700 p-4">
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <Input
+              <TransliterateInput
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                onChange={(v) => setInput(v)}
+                onSubmit={handleSend}
+                lang={lang}
                 placeholder={t('chat_input_placeholder')}
-                className="text-base"
                 id="chat-input"
               />
             </div>
-            <VoiceButton onTranscript={handleVoiceTranscript} language={lang} />
+            <VoiceButton onTranscript={handleVoiceTranscript} />
             <Button onClick={handleSend} disabled={loading || !input.trim()} className="h-14 px-6">
               <Send className="w-5 h-5" />
             </Button>
@@ -163,7 +161,7 @@ export default function ChatbotPage() {
       {/* Suggested Questions */}
       <div className="mt-8">
         <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
-          Try asking:
+          {t('chat_try_asking')}
         </h3>
         <div className="flex flex-wrap gap-2">
           {SUGGESTED_QUESTIONS.map((q, i) => (

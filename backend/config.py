@@ -29,10 +29,7 @@ LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 
 # ---- RAG / data -------------------------------------------------------
-_chroma_path = os.getenv("CHROMA_PERSIST_DIR", "./data/chroma")
-if not os.path.isabs(_chroma_path):
-    _chroma_path = os.path.join(os.path.dirname(__file__), _chroma_path)
-CHROMA_PERSIST_DIR = os.path.abspath(_chroma_path)
+CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./data/chroma")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
 
 # Rebuild the vector index on startup if the collection is empty.

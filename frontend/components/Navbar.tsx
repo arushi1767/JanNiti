@@ -5,24 +5,26 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LANGUAGES } from '@/lib/utils'
+import { useI18n, LangCode } from '@/lib/i18n'
 import {
   Menu, X, Sun, Moon, Globe, ChevronDown, Home,
   FileText, GitCompare, BarChart3, MessageCircle, Shield
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Home', icon: Home },
-  { href: '/explainer', label: 'Explainer', icon: FileText },
-  { href: '/compare', label: 'Compare', icon: GitCompare },
-  { href: '/chatbot', label: 'AI Chat', icon: MessageCircle },
-  { href: '/dashboard', label: 'Impact', icon: BarChart3 },
+  { href: '/', key: 'nav_home', icon: Home },
+  { href: '/explainer', key: 'nav_explainer', icon: FileText },
+  { href: '/compare', key: 'nav_compare', icon: GitCompare },
+  { href: '/chatbot', key: 'nav_chat', icon: MessageCircle },
+  { href: '/dashboard', key: 'nav_impact', icon: BarChart3 },
 ]
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isDark, setIsDark] = useState(false)
   const [showLang, setShowLang] = useState(false)
-  const [currentLang, setCurrentLang] = useState(LANGUAGES[0])
+  const { lang, setLang, t } = useI18n()
+  const currentLang = LANGUAGES.find(l => l.code === lang) || LANGUAGES[0]
   const pathname = usePathname()
 
   useEffect(() => {
@@ -65,7 +67,7 @@ export function Navbar() {
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon className="w-4 h-4" />
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               )
             })}
@@ -90,7 +92,7 @@ export function Navbar() {
                     {LANGUAGES.map(lang => (
                       <button
                         key={lang.code}
-                        onClick={() => { setCurrentLang(lang); setShowLang(false) }}
+                        onClick={() => { setLang(lang.code as LangCode); setShowLang(false) }}
                         className={cn(
                           'w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
                           currentLang.code === lang.code ? 'text-primary-600 font-semibold' : 'text-gray-700 dark:text-gray-300'
@@ -144,7 +146,7 @@ export function Navbar() {
                   )}
                 >
                   <Icon className="w-5 h-5" />
-                  {item.label}
+                  {t(item.key)}
                 </Link>
               )
             })}

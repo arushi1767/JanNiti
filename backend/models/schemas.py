@@ -1,17 +1,36 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional, List
 
 
 class PolicyQuery(BaseModel):
-    query: str = Field(..., min_length=1, max_length=500)
-    language: str = Field(default="en", pattern="^[a-z]{2}$")
-    state: Optional[str] = Field(default=None, max_length=100)
+    query: str
+    language: str = "en"
+    state: Optional[str] = None
+
+
+class ConversationTurn(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class ChatMessage(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+    conversation_history: Optional[List[dict]] = None   # fixes "chat forgets" bug
+    language: str = "en"
 
 
 class CompareRequest(BaseModel):
-    scheme1: str = Field(..., min_length=1, max_length=300)
-    scheme2: str = Field(..., min_length=1, max_length=300)
-    language: str = Field(default="en", pattern="^[a-z]{2}$")
+    scheme1: str
+    scheme2: str
+    language: str = "en"
+
+
+class RecommendRequest(BaseModel):
+    scheme1: str
+    scheme2: str
+    profile: dict = {}
+    language: str = "en"
 
 
 class ExplainerResponse(BaseModel):
@@ -38,12 +57,15 @@ class DashboardStats(BaseModel):
     last_updated: str
     source: str
     top_schemes: Optional[List[dict]] = None
+    is_illustrative: bool = False   # honest labelling (bug #6)
 
 
 class ChatResponse(BaseModel):
     reply: str
     sources: List[str]
     confidence: str
+    faithfulness: Optional[float] = None     # RAGAS-style grounding score
+    grounded: Optional[bool] = None
 
 
 class ELI5Response(BaseModel):

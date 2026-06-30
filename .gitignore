@@ -1,27 +1,21 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-.env
-.venv
-venv/
-*.egg-info/
-
-# ChromaDB data (regenerated on startup)
-backend/data/chroma/
-
-# Logs (never commit runtime logs)
-backend/startup_err.txt
-backend/startup_out.txt
-*.log
-
-# Node / Next.js
 node_modules/
-frontend/.next/
-frontend/out/
-frontend/.env.local
-frontend/.env.production
-
-# OS
+.next/
+__pycache__/
+*.pyc
+.env
+.env.local
+*.egg-info/
+dist/
+build/
+.chroma/
+data/chroma/
+*.db
 .DS_Store
+venv/
+.venv/
+backend/venv/
+
+*.sqlite3
+# Logs
+*.log
 Thumbs.db

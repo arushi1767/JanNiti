@@ -1,39 +1,28 @@
-import os
 import logging
 from dotenv import load_dotenv
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("janniti")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import explainer, chat, compare, dashboard, voice
+
+import config
+from routers import explainer, chat, compare, dashboard, voice, transliterate
 
 app = FastAPI(
     title="JanNiti - India's Policy Literacy Platform",
     description="AI-powered platform explaining Indian government schemes in simple language",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    version="1.1.0",
+    docs_url="/docs", redoc_url="/redoc",
 )
-
-# CORS: read from env so it works across dev/staging/prod without code changes
-_raw_origins = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,https://janniti.vercel.app"
-)
-ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=config.CORS_ORIGINS,      # env-driven (bug #8)
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"], allow_headers=["*"],
 )
 
 app.include_router(explainer.router)
@@ -41,38 +30,27 @@ app.include_router(chat.router)
 app.include_router(compare.router)
 app.include_router(dashboard.router)
 app.include_router(voice.router)
+app.include_router(transliterate.router)
 
 
 @app.on_event("startup")
-async def startup_event():
-    """Seed the RAG database on startup if it's empty."""
-    from services.rag_service import rag_service
-    count = rag_service.count_documents()
-    logger.info(f"RAG store has {count} documents")
-    if count == 0:
-        logger.info("RAG store is empty — seeding with built-in scheme data...")
+async def _startup():
+    logger.info(f"LLM provider: {config.LLM_PROVIDER} | configured: {config.llm_configured()}")
+    if not config.llm_configured():
+        logger.warning("No LLM key configured — chat/explainer will return a clear "
+                       "'AI unavailable' message until a key is set.")
+    if config.AUTO_INGEST_ON_START:
         try:
-            from seed_data import seed_database
-            seed_database(rag_service)
-            logger.info(f"Seeding complete. RAG store now has {rag_service.count_documents()} documents")
+            from services.rag_service import rag_service
+            count = rag_service.ensure_populated()   # rebuild index if empty (bug #5)
+            logger.info(f"Vector store ready: {count} documents.")
         except Exception as e:
-            logger.error(f"Seeding failed: {e}")
+            logger.error(f"Startup ingest failed: {e}", exc_info=True)
 
 
 @app.get("/")
 async def root():
-    return {
-        "name": "JanNiti API",
-        "version": "1.0.0",
-        "status": "running",
-        "endpoints": {
-            "explainer": "/api/explainer/*",
-            "chat": "/api/chat/*",
-            "compare": "/api/compare/*",
-            "dashboard": "/api/dashboard/*",
-            "voice": "/api/voice/*",
-        },
-    }
+    return {"name": "JanNiti API", "version": "1.1.0", "status": "running"}
 
 
 @app.get("/health")
@@ -80,13 +58,14 @@ async def health():
     from services.rag_service import rag_service
     return {
         "status": "healthy",
-        "rag_documents": rag_service.count_documents(),
-        "groq_configured": bool(os.getenv("GROQ_API_KEY")),
-        "openai_configured": bool(os.getenv("OPENAI_API_KEY", "").startswith("sk-") and not os.getenv("OPENAI_API_KEY", "").startswith("sk-your")),
+        "llm_provider": config.LLM_PROVIDER,
+        "llm_configured": config.llm_configured(),
+        "documents_indexed": rag_service.count_documents(),
+        "rag_available": rag_service.available,
     }
 
 
 if __name__ == "__main__":
-    import uvicorn
+    import os, uvicorn
     logger.info("Starting JanNiti backend server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))

@@ -1,104 +1,99 @@
-import os
-import requests
-from typing import Optional, List, Dict
+"""
+Data service — honest version (fixes bug #6).
+
+Before: the dashboard returned hard-typed numbers presented as live data.gov.in
+data, and search returned a hand-typed scheme list that didn't match the actual
+PDFs. Now:
+  * search_schemes() is driven by the REAL scheme names derived from the PDFs
+    in data/chroma/policies/ (single source of truth: ingest_pdfs).
+  * get_dashboard_stats() is explicitly flagged is_illustrative=True and counts
+    the real number of indexed schemes; it no longer pretends to be live.
+  * fetch_datagov_scheme_data() only returns data if a real DATAGOV_API_KEY +
+    dataset id are configured, else None (the placeholder ids returned nothing).
+"""
+import logging
 from datetime import datetime
+from typing import Optional, List, Dict
+
+import requests
+
+import config
+from scripts.ingest_pdfs import list_known_schemes
+
+logger = logging.getLogger("janniti.data")
 
 DATAGOV_BASE = "https://api.data.gov.in/resource"
-DATAGOV_API_KEY = os.getenv("DATAGOV_API_KEY", "")
-
-# NOTE: dashboard stats are curated from official PIB/Annual Report sources.
-# They reflect last verified figures and are updated manually each quarter.
-# This is clearly labeled in the UI - not claimed as "live" data.
-DASHBOARD_STATS = {
-    "total_beneficiaries": "78+ Crore citizens reached across all central schemes",
-    "total_funds_disbursed": "₹12.5+ Lakh Crore (FY 2024-25 budget allocation)",
-    "state_coverage": [
-        {"state": "Uttar Pradesh", "schemes": 45, "beneficiaries": "15.2 Cr"},
-        {"state": "Maharashtra", "schemes": 42, "beneficiaries": "8.7 Cr"},
-        {"state": "Bihar", "schemes": 40, "beneficiaries": "7.8 Cr"},
-        {"state": "Madhya Pradesh", "schemes": 38, "beneficiaries": "5.6 Cr"},
-        {"state": "Rajasthan", "schemes": 36, "beneficiaries": "5.1 Cr"},
-        {"state": "West Bengal", "schemes": 35, "beneficiaries": "6.4 Cr"},
-        {"state": "Tamil Nadu", "schemes": 34, "beneficiaries": "4.8 Cr"},
-        {"state": "Karnataka", "schemes": 33, "beneficiaries": "4.2 Cr"},
-        {"state": "Gujarat", "schemes": 32, "beneficiaries": "3.9 Cr"},
-        {"state": "Odisha", "schemes": 30, "beneficiaries": "3.1 Cr"},
-    ],
-    "source": "PIB Press Releases, Ministry Annual Reports 2024-25 (figures as of March 2025)",
-    "top_schemes": [
-        {"name": "PM Kisan Samman Nidhi", "beneficiaries": "11+ Crore farmers", "funds": "₹2.4 Lakh Cr"},
-        {"name": "Ayushman Bharat PM-JAY", "beneficiaries": "30+ Crore beneficiaries", "funds": "₹6,400 Cr"},
-        {"name": "PM Ujjwala Yojana", "beneficiaries": "10.3+ Crore connections", "funds": "₹1.3 Lakh Cr"},
-        {"name": "PM Awas Yojana", "beneficiaries": "4+ Crore houses", "funds": "₹2.5 Lakh Cr"},
-        {"name": "MGNREGA", "beneficiaries": "15+ Crore households", "funds": "₹1.2 Lakh Cr"},
-    ],
-}
-
-# Deduplicated scheme list (removed duplicate Sukanya Samriddhi Yojana)
-SCHEMES_DB: List[Dict] = [
-    {"id": "pm-kisan", "name": "PM Kisan Samman Nidhi", "ministry": "Ministry of Agriculture & Farmers Welfare", "type": "Central", "keywords": ["kisan", "farmer", "agriculture", "samman", "nidhi"]},
-    {"id": "ayushman", "name": "Ayushman Bharat Pradhan Mantri Jan Arogya Yojana", "ministry": "Ministry of Health & Family Welfare", "type": "Central", "keywords": ["ayushman", "health", "insurance", "hospital", "pmjay", "arogya"]},
-    {"id": "pm-ujjwala", "name": "Pradhan Mantri Ujjwala Yojana", "ministry": "Ministry of Petroleum & Natural Gas", "type": "Central", "keywords": ["ujjwala", "lpg", "gas", "cylinder", "fuel", "cooking"]},
-    {"id": "pm-awas", "name": "Pradhan Mantri Awas Yojana", "ministry": "Ministry of Housing & Urban Affairs", "type": "Central", "keywords": ["awas", "housing", "home", "ghar", "house"]},
-    {"id": "mgnrega", "name": "Mahatma Gandhi National Rural Employment Guarantee Act", "ministry": "Ministry of Rural Development", "type": "Central", "keywords": ["mgnrega", "employment", "work", "rural", "rozgar", "job", "100 days"]},
-    {"id": "pm-shram", "name": "Pradhan Mantri Shram Yogi Maan-dhan", "ministry": "Ministry of Labour & Employment", "type": "Central", "keywords": ["shram", "labour", "worker", "pension", "unorganised"]},
-    {"id": "sukanya", "name": "Sukanya Samriddhi Yojana", "ministry": "Ministry of Finance", "type": "Central", "keywords": ["sukanya", "girl", "daughter", "savings", "samridhi", "ssy"]},
-    {"id": "pm-poshan", "name": "PM POSHAN (Mid-Day Meal) Scheme", "ministry": "Ministry of Education", "type": "Central", "keywords": ["poshan", "mid day meal", "school", "nutrition", "midday", "lunch"]},
-    {"id": "skill-india", "name": "Pradhan Mantri Kaushal Vikas Yojana", "ministry": "Ministry of Skill Development & Entrepreneurship", "type": "Central", "keywords": ["skill", "kaushal", "training", "pmkvy", "vocational"]},
-    {"id": "pm-mudra", "name": "Pradhan Mantri Mudra Yojana", "ministry": "Ministry of Finance", "type": "Central", "keywords": ["mudra", "loan", "business", "self employed", "micro", "shishu", "kishor", "tarun"]},
-    {"id": "pm-svanidhi", "name": "PM Street Vendor's AtmaNirbhar Nidhi", "ministry": "Ministry of Housing & Urban Affairs", "type": "Central", "keywords": ["svanidhi", "street vendor", "hawker", "rehdi", "patri", "loan"]},
-    {"id": "nsap", "name": "National Social Assistance Programme", "ministry": "Ministry of Rural Development", "type": "Central", "keywords": ["nsap", "social assistance", "pension", "widow", "disability", "old age"]},
-    {"id": "stand-up-india", "name": "Stand Up India", "ministry": "Ministry of Finance", "type": "Central", "keywords": ["stand up", "sc st", "women entrepreneur", "bank loan", "startup"]},
-    {"id": "pmfby", "name": "Pradhan Mantri Fasal Bima Yojana", "ministry": "Ministry of Agriculture & Farmers Welfare", "type": "Central", "keywords": ["fasal", "crop", "insurance", "bima", "kharif", "rabi"]},
-    {"id": "jal-jeevan", "name": "Jal Jeevan Mission (Har Ghar Jal)", "ministry": "Ministry of Jal Shakti", "type": "Central", "keywords": ["jal jeevan", "water", "tap", "nal", "har ghar"]},
-    {"id": "pm-daksh", "name": "PM Daksh Yojana", "ministry": "Ministry of Social Justice & Empowerment", "type": "Central", "keywords": ["daksh", "obc", "sc", "safai karamcharis", "skill training"]},
-    {"id": "matru-vandana", "name": "Pradhan Mantri Matru Vandana Yojana", "ministry": "Ministry of Women & Child Development", "type": "Central", "keywords": ["matru vandana", "maternity", "pregnancy", "mother", "pmmvy"]},
-    {"id": "pm-gatishakti", "name": "PM GatiShakti National Master Plan", "ministry": "Ministry of Commerce & Industry", "type": "Central", "keywords": ["gatishakti", "infrastructure", "logistics", "connectivity"]},
-    {"id": "pmvvy", "name": "Pradhan Mantri Vaya Vandana Yojana", "ministry": "Ministry of Finance", "type": "Central", "keywords": ["vaya vandana", "senior citizen", "pension", "elderly", "old age", "pmvvy"]},
-]
+# Real dataset ids only — left empty by design. Add a verified id + key to enable.
+SCHEME_DATASETS: Dict[str, str] = {}
 
 
-async def get_dashboard_stats() -> Dict:
-    stats = dict(DASHBOARD_STATS)
-    stats["last_updated"] = "March 2025 (PIB Annual Reports)"
-    return stats
-
-
-async def search_schemes(query: str) -> List[Dict]:
-    """Improved search: exact match → keyword match → partial word match."""
-    q = query.lower().strip()
-    if not q:
-        return []
-
-    exact, keyword, partial = [], [], []
-
-    for scheme in SCHEMES_DB:
-        name_lower = scheme["name"].lower()
-        keywords = scheme.get("keywords", [])
-
-        if q in name_lower:
-            exact.append(scheme)
-        elif any(kw in q or q in kw for kw in keywords):
-            keyword.append(scheme)
-        elif any(word in name_lower for word in q.split() if len(word) > 2):
-            partial.append(scheme)
-
-    # Deduplicate preserving order
-    seen, results = set(), []
-    for s in exact + keyword + partial:
-        if s["id"] not in seen:
-            seen.add(s["id"])
-            results.append({k: v for k, v in s.items() if k != "keywords"})
-
-    return results[:10]
+def _ministry_guess(name: str) -> str:
+    n = name.lower()
+    if any(w in n for w in ("kisan", "fasal", "bima yojna", "samman nidhi")):
+        return "Ministry of Agriculture & Farmers Welfare"
+    if any(w in n for w in ("scholarship", "talent", "research fellowship", "single girl")):
+        return "Ministry of Education"
+    if any(w in n for w in ("kaushal", "skill", "rozgar")):
+        return "Ministry of Skill Development & Entrepreneurship"
+    if any(w in n for w in ("mudra", "jan dhan", "jeevan jyoti", "suraksha", "stand up", "loan")):
+        return "Ministry of Finance"
+    if "garib kalyan" in n:
+        return "Ministry of Consumer Affairs, Food & Public Distribution"
+    if "pension" in n:
+        return "Ministry of Finance (PFRDA)"
+    return "Government of India"
 
 
 async def fetch_datagov_scheme_data(scheme_id: str) -> Optional[Dict]:
-    """Fetch live data from data.gov.in if API key is configured."""
-    if not DATAGOV_API_KEY:
+    if not config.DATAGOV_API_KEY:
         return None
-    scheme = next((s for s in SCHEMES_DB if s["id"] == scheme_id), None)
-    if not scheme:
+    dataset_id = SCHEME_DATASETS.get(scheme_id)
+    if not dataset_id:
         return None
-    # data.gov.in integration placeholder — requires real resource UUIDs from the portal
+    try:
+        resp = requests.get(f"{DATAGOV_BASE}/{dataset_id}",
+                            params={"api-key": config.DATAGOV_API_KEY, "format": "json", "limit": 100},
+                            timeout=10)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception as e:
+        logger.warning(f"data.gov.in fetch failed: {e}")
     return None
+
+
+async def search_schemes(query: str) -> List[Dict]:
+    """Search the REAL ingested schemes (from the PDF filenames)."""
+    schemes = []
+    for name in list_known_schemes():
+        slug = name.lower().replace(" ", "-")
+        schemes.append({"id": slug, "name": name, "ministry": _ministry_guess(name),
+                        "type": "Central", "source": "Ingested official PDF"})
+    q = query.lower().strip()
+    if not q:
+        return schemes[:10]
+    hits = [s for s in schemes if q in s["name"].lower()]
+    if not hits:
+        words = q.split()
+        hits = [s for s in schemes if any(w in s["name"].lower() for w in words)]
+    return hits[:10]
+
+
+async def get_dashboard_stats() -> Dict:
+    """Illustrative dashboard — clearly flagged, with the real indexed count."""
+    real_schemes = list_known_schemes()
+    return {
+        "total_beneficiaries": "Illustrative — not live data",
+        "total_funds_disbursed": "Illustrative — not live data",
+        # Honest coverage: these are CENTRAL schemes available across all states.
+        # We do not invent per-state beneficiary counts (that would be hallucination).
+        "state_coverage": [
+            {"state": "All India (Central scheme)", "schemes": len(real_schemes), "beneficiaries": "See official portal"}
+        ],
+        "last_updated": datetime.now().strftime("%B %d, %Y"),
+        "source": (f"JanNiti knowledge base: {len(real_schemes)} official scheme documents indexed. "
+                   "Headline figures are illustrative placeholders, not live government statistics. "
+                   "For live data see data.gov.in / myscheme.gov.in."),
+        "top_schemes": [{"name": n, "beneficiaries": "See official portal", "funds": "See official portal"}
+                        for n in real_schemes[:6]],
+        "is_illustrative": True,
+    }

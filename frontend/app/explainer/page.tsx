@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { VoiceButton } from '@/components/ui/VoiceButton'
 import { SourceBadge } from '@/components/ui/SourceBadge'
-import { explainScheme, detectConditions, getELI5, searchSchemes } from '@/lib/api'
+import { explainScheme, detectConditions, getELI5 } from '@/lib/api'
+import { useLang } from '@/lib/i18n'
+import { SCHEMES, schemeLabel, findScheme } from '@/lib/schemes'
 import {
-  Search, Loader2, AlertTriangle, CheckCircle2, Info,
+  Loader2, AlertTriangle, CheckCircle2, Info, ExternalLink,
   FileText, BookOpen, Lightbulb, Users, FileCheck,
   ClipboardList, CalendarClock, HelpCircle,
   Sparkles, Shield, AlertOctagon
@@ -54,6 +54,7 @@ function SeverityIcon({ severity }: { severity: string }) {
 }
 
 export default function ExplainerPage() {
+  const { lang, t } = useLang()
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [showELI5, setShowELI5] = useState(false)
@@ -63,26 +64,22 @@ export default function ExplainerPage() {
   const [result, setResult] = useState<SchemeResult | null>(null)
   const [eli5, setEli5] = useState<ELI5Result | null>(null)
   const [conditions, setConditions] = useState<{ conditions: Condition[], summary: string } | null>(null)
-  const [suggestions, setSuggestions] = useState<any[]>([])
   const [error, setError] = useState('')
 
-  const handleSearch = async () => {
-    if (!query.trim()) return
+  const handleSearch = async (override?: string) => {
+    const q = (override ?? query).trim()
+    if (!q) return
     setLoading(true)
     setError('')
     setResult(null)
     setEli5(null)
     setConditions(null)
+    setActiveTab('explain')
 
     try {
-      const [explainResult, condResult, eli5Result] = await Promise.all([
-        explainScheme({ query: query.trim(), language: 'en' }),
-        detectConditions({ query: query.trim(), language: 'en' }),
-        getELI5({ query: query.trim(), language: 'en' }),
-      ])
+      // Only the explanation loads on search -> fast. Other tabs load on demand.
+      const explainResult = await explainScheme({ query: q, language: lang })
       setResult(explainResult)
-      setConditions(condResult)
-      setEli5(eli5Result)
     } catch (err) {
       console.error('Explainer API error:', err)
       setError('Failed to fetch explanation. Please try again.')
@@ -91,73 +88,51 @@ export default function ExplainerPage() {
     }
   }
 
-  const handleQueryChange = async (value: string) => {
-    setQuery(value)
-    if (value.length > 2) {
-      try {
-        const res = await searchSchemes(value)
-        setSuggestions(res.results || [])
-      } catch { setSuggestions([]) }
-    } else {
-      setSuggestions([])
-    }
+  // Lazy-load the Simple Story only when its tab is opened
+  const loadEli5 = async () => {
+    if (eli5 || !query.trim()) return
+    try {
+      setEli5(await getELI5({ query: query.trim(), language: lang }))
+    } catch (err) { console.error('ELI5 error:', err) }
   }
 
-  const selectSuggestion = (name: string) => {
-    setQuery(name)
-    setSuggestions([])
+  // Lazy-load Hidden Conditions only when its tab is opened
+  const loadConditions = async () => {
+    if (conditions || !query.trim()) return
+    try {
+      setConditions(await detectConditions({ query: query.trim(), language: lang }))
+    } catch (err) { console.error('Conditions error:', err) }
   }
 
-  const handleVoiceTranscript = (text: string) => {
-    setQuery(text)
-  }
+
+
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <div className="text-center mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">
-          Policy Explainer
+          {t('page_title')}
         </h1>
         <p className="mt-3 text-lg text-gray-600 dark:text-gray-400">
-          Search any central or state government scheme. Get a simple explanation.
+          {t('page_sub')}
         </p>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-8">
-        <div className="flex gap-3 items-start">
-          <div className="flex-1 relative">
-            <Input
-              value={query}
-              onChange={(e) => handleQueryChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search a scheme... e.g., PM Kisan, Ayushman Bharat, MGNREGA"
-              className="pl-12 text-lg py-4"
-              id="scheme-search"
-            />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            {suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-10 max-h-60 overflow-y-auto">
-                {suggestions.map((s: any, i: number) => (
-                  <button
-                    key={i}
-                    onClick={() => selectSuggestion(s.name)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm border-b border-gray-100 dark:border-gray-700 last:border-0"
-                  >
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{s.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">{s.ministry}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <VoiceButton onTranscript={handleVoiceTranscript} className="shrink-0" />
-        </div>
-        <div className="flex justify-center mt-4">
-          <Button onClick={handleSearch} disabled={loading || !query.trim()} size="lg" className="px-10">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Search className="w-5 h-5 mr-2" />}
-            {loading ? 'Researching...' : 'Explain Scheme'}
-          </Button>
+      {/* Scheme picker (one-click, in the selected language) */}
+      <div className="mb-8">
+        <p className="text-center text-gray-600 dark:text-gray-400 mb-3">{t('explainer_pick')}</p>
+        <div className="max-w-xl mx-auto">
+          <select
+            value={query}
+            onChange={(e) => { const id = e.target.value; setQuery(id); if (id) handleSearch(id) }}
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
+            aria-label={t('choose_scheme')}
+          >
+            <option value="">{t('choose_scheme')}</option>
+            {SCHEMES.map((sc) => (
+              <option key={sc.id} value={sc.id}>{schemeLabel(sc, lang)}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -170,7 +145,7 @@ export default function ExplainerPage() {
       {loading && (
         <div className="text-center py-16">
           <Loader2 className="w-10 h-10 animate-spin text-primary-600 mx-auto mb-4" />
-          <p className="text-gray-500 dark:text-gray-400">Analyzing scheme information...</p>
+          <p className="text-gray-500 dark:text-gray-400">{t('analyzing')}</p>
         </div>
       )}
 
@@ -192,18 +167,42 @@ export default function ExplainerPage() {
             </div>
           </div>
 
+          {/* Apply Now -> official government portal (new tab) */}
+          {findScheme(query) && (
+            <a
+              href={findScheme(query)!.apply}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between gap-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl px-6 py-5 transition-colors shadow-sm"
+            >
+              <div>
+                <div className="text-lg md:text-xl font-bold flex items-center gap-2">
+                  <ExternalLink className="w-5 h-5" /> {t('apply_now')}
+                </div>
+                <div className="text-sm text-green-100 mt-0.5">{t('apply_sub')}</div>
+              </div>
+              <span className="hidden sm:inline text-sm font-mono bg-green-700/60 rounded-lg px-3 py-1.5 truncate max-w-[16rem]">
+                {findScheme(query)!.apply.replace('https://', '')}
+              </span>
+            </a>
+          )}
+
           {/* Tab Navigation */}
           <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
             {[
-              { id: 'explain', label: 'Explanation', icon: FileText },
-              { id: 'eli5', label: 'Simple Story', icon: BookOpen },
-              { id: 'conditions', label: 'Hidden Conditions', icon: AlertTriangle },
+              { id: 'explain', label: t('tab_explanation'), icon: FileText },
+              { id: 'eli5', label: t('tab_story'), icon: BookOpen },
+              { id: 'conditions', label: t('tab_hidden'), icon: AlertTriangle },
             ].map(tab => {
               const Icon = tab.icon
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => {
+                    setActiveTab(tab.id as any)
+                    if (tab.id === 'eli5') loadEli5()
+                    if (tab.id === 'conditions') loadConditions()
+                  }}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === tab.id
                       ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
@@ -223,7 +222,7 @@ export default function ExplainerPage() {
               <Card>
                 <CardTitle className="flex items-center gap-2 mb-3">
                   <Info className="w-5 h-5 text-primary-600" />
-                  What is this scheme?
+                  {t('q_what_is')}
                 </CardTitle>
                 <CardContent>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base">{result.what_is}</p>
@@ -233,7 +232,7 @@ export default function ExplainerPage() {
               <Card>
                 <CardTitle className="flex items-center gap-2 mb-3">
                   <Sparkles className="w-5 h-5 text-safron-600" />
-                  Why was it introduced?
+                  {t('q_why')}
                 </CardTitle>
                 <CardContent>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{result.why_introduced}</p>
@@ -243,7 +242,7 @@ export default function ExplainerPage() {
               <Card>
                 <CardTitle className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  What benefits do you get?
+                  {t('q_benefits')}
                 </CardTitle>
                 <CardContent>
                   <ul className="space-y-2">
@@ -260,7 +259,7 @@ export default function ExplainerPage() {
               <Card>
                 <CardTitle className="flex items-center gap-2 mb-3">
                   <Users className="w-5 h-5 text-blue-600" />
-                  Who is eligible?
+                  {t('q_eligible')}
                 </CardTitle>
                 <CardContent>
                   <ul className="space-y-2">
@@ -277,7 +276,7 @@ export default function ExplainerPage() {
               <Card>
                 <CardTitle className="flex items-center gap-2 mb-3">
                   <FileCheck className="w-5 h-5 text-purple-600" />
-                  Required Documents
+                  {t('q_documents')}
                 </CardTitle>
                 <CardContent>
                   <ul className="space-y-2">
@@ -294,7 +293,7 @@ export default function ExplainerPage() {
               <Card>
                 <CardTitle className="flex items-center gap-2 mb-3">
                   <ClipboardList className="w-5 h-5 text-teal-600" />
-                  How to Apply
+                  {t('q_how_apply')}
                 </CardTitle>
                 <CardContent>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{result.how_to_apply}</p>
@@ -305,7 +304,7 @@ export default function ExplainerPage() {
                 <Card>
                   <CardTitle className="flex items-center gap-2 mb-3">
                     <CalendarClock className="w-5 h-5 text-orange-600" />
-                    Deadlines
+                    {t('q_deadlines')}
                   </CardTitle>
                   <CardContent>
                     <p className="text-gray-700 dark:text-gray-300">{result.deadlines}</p>
@@ -317,7 +316,7 @@ export default function ExplainerPage() {
                 <Card>
                   <CardTitle className="flex items-center gap-2 mb-3">
                     <HelpCircle className="w-5 h-5 text-red-600" />
-                    Frequently Misunderstood Clauses
+                    {t('q_clauses')}
                   </CardTitle>
                   <CardContent>
                     <ul className="space-y-2">
@@ -344,7 +343,7 @@ export default function ExplainerPage() {
               <Card className="bg-gradient-to-br from-green-50 to-teal-50 dark:from-gray-800 dark:to-gray-800 border-green-200 dark:border-green-800">
                 <CardTitle className="flex items-center gap-2 mb-3 text-green-700 dark:text-green-400">
                   <BookOpen className="w-5 h-5" />
-                  A Simple Story
+                  {t('story_title')}
                 </CardTitle>
                 <CardContent>
                   <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed italic">
@@ -356,7 +355,7 @@ export default function ExplainerPage() {
               <Card>
                 <CardTitle className="flex items-center gap-2 mb-3">
                   <Lightbulb className="w-5 h-5 text-yellow-600" />
-                  In Simple Words
+                  {t('story_simple')}
                 </CardTitle>
                 <CardContent>
                   <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
@@ -368,7 +367,7 @@ export default function ExplainerPage() {
               <Card className="bg-blue-50 dark:bg-blue-900/10">
                 <CardTitle className="flex items-center gap-2 mb-3 text-blue-700 dark:text-blue-400">
                   <Sparkles className="w-5 h-5" />
-                  Everyday Example
+                  {t('story_example')}
                 </CardTitle>
                 <CardContent>
                   <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
@@ -380,7 +379,7 @@ export default function ExplainerPage() {
               <Card className="bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800">
                 <CardTitle className="flex items-center gap-2 mb-3 text-primary-700 dark:text-primary-400">
                   <CheckCircle2 className="w-5 h-5" />
-                  Key Takeaway
+                  {t('story_takeaway')}
                 </CardTitle>
                 <CardContent>
                   <p className="text-gray-800 dark:text-gray-200 text-xl font-semibold">
@@ -398,7 +397,7 @@ export default function ExplainerPage() {
                 <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
                   <CardTitle className="flex items-center gap-2 mb-3 text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-5 h-5" />
-                    Summary of Key Risks
+                    {t('cond_summary')}
                   </CardTitle>
                   <CardContent>
                     <p className="text-gray-700 dark:text-gray-300">{conditions.summary}</p>
@@ -414,9 +413,9 @@ export default function ExplainerPage() {
                     red: 'border-l-red-500 bg-red-50 dark:bg-red-900/10',
                   }
                   const severityLabels = {
-                    green: 'General Info',
-                    yellow: 'Read Carefully',
-                    red: 'Important Alert',
+                    green: t('cond_general'),
+                    yellow: t('cond_read'),
+                    red: t('cond_alert'),
                   }
                   return (
                     <div
@@ -444,8 +443,7 @@ export default function ExplainerPage() {
                 <Card>
                   <CardContent>
                     <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                      No specific hidden conditions found for this scheme.
-                      Always verify with official sources.
+                      {t('cond_none')}
                     </p>
                   </CardContent>
                 </Card>

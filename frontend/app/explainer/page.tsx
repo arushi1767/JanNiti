@@ -8,6 +8,7 @@ import { SourceBadge } from '@/components/ui/SourceBadge'
 import { explainScheme, detectConditions, getELI5 } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
 import { SCHEMES, schemeLabel, findScheme } from '@/lib/schemes'
+import { trackView } from '@/lib/services/activity'
 import {
   Loader2, AlertTriangle, CheckCircle2, Info, ExternalLink,
   FileText, BookOpen, Lightbulb, Users, FileCheck,
@@ -80,6 +81,10 @@ export default function ExplainerPage() {
       // Only the explanation loads on search -> fast. Other tabs load on demand.
       const explainResult = await explainScheme({ query: q, language: lang })
       setResult(explainResult)
+      const scheme = findScheme(q)
+      if (scheme) {
+        trackView(scheme.id, explainResult.title, 'explainer')
+      }
     } catch (err) {
       console.error('Explainer API error:', err)
       setError('Failed to fetch explanation. Please try again.')

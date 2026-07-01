@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardTitle } from '@/components/ui/Card'
 import { compareSchemes, recommendForProfile } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
-import { SCHEMES, schemeLabel } from '@/lib/schemes'
+import { SCHEMES, schemeLabel, findScheme } from '@/lib/schemes'
+import { trackView, trackCompare } from '@/lib/services/activity'
 import { Loader2, ArrowRightLeft, CheckCircle2, Info, Sparkles } from 'lucide-react'
 
 export default function ComparePage() {
@@ -46,6 +47,13 @@ export default function ComparePage() {
     try {
       const res = await compareSchemes(scheme1.trim(), scheme2.trim(), lang)
       setResult(res)
+      const s1 = findScheme(scheme1.trim())
+      const s2 = findScheme(scheme2.trim())
+      if (s1 && s2) {
+        trackView(s1.id, schemeLabel(s1, 'en'), 'compare')
+        trackView(s2.id, schemeLabel(s2, 'en'), 'compare')
+        trackCompare(s1.id, s2.id, schemeLabel(s1, 'en'), schemeLabel(s2, 'en'), 'compare')
+      }
     } catch (err) {
       console.error('Compare API error:', err)
       setError('Failed to compare schemes. Please try again.')

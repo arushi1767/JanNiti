@@ -1,5 +1,15 @@
 'use client'
 import { I18nProvider } from '@/lib/i18n'
+import { AuthProvider } from '@/lib/contexts/AuthContext'
+import { ToastProvider } from '@/lib/contexts/ToastContext'
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <I18nProvider>{children}</I18nProvider>
+  return (
+    <ToastProvider>
+      <I18nProvider>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </I18nProvider>
+    </ToastProvider>
+  )
 }

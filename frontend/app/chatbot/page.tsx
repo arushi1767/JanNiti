@@ -3,12 +3,27 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { TransliterateInput } from '@/components/ui/TransliterateInput'
-import { Card } from '@/components/ui/Card'
 import { VoiceButton } from '@/components/ui/VoiceButton'
 import { chatWithAI } from '@/lib/api'
 import { useI18n } from '@/lib/i18n'
-import { Send, Loader2, Bot, User, Shield, AlertTriangle } from 'lucide-react'
+import { trackChat } from '@/lib/services/activity'
+import { Send, Loader2, Bot, User, Shield, AlertTriangle, Volume2 } from 'lucide-react'
 import { cn, getConfidenceColor } from '@/lib/utils'
+
+const LANG_MAP: Record<string, string> = {
+  en: 'en-IN',
+  hi: 'hi-IN',
+  bn: 'bn-IN',
+  ta: 'ta-IN',
+}
+
+/** Language names for broader TTS voice fallback matching */
+const LANG_NAMES: Record<string, string[]> = {
+  en: ['en', 'english'],
+  hi: ['hi', 'hindi'],
+  bn: ['bn', 'bengali', 'bangla'],
+  ta: ['ta', 'tamil'],
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -27,7 +42,26 @@ export default function ChatbotPage() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null)
+  const [voiceStatus, setVoiceStatus] = useState<'idle' | 'listening' | 'processing'>('idle')
+  const [ttsVoices, setTtsVoices] = useState<SpeechSynthesisVoice[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    const load = () => {
+      const v = window.speechSynthesis.getVoices()
+      setTtsVoices([...v])
+      if (v.length > 0) {
+        Object.entries(LANG_MAP).forEach(([code, bcp]) => {
+          const match = v.find(voice => voice.lang === bcp)
+          console.log(`[JanNiti TTS] ${code} (${bcp}): ${match ? match.name : 'NO MATCH'}`)
+        })
+      }
+    }
+    load()
+    window.speechSynthesis.onvoiceschanged = load
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -40,22 +74,23 @@ export default function ChatbotPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang])
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return
-    const userMessage = input.trim()
-    setInput('')
+  const handleSend = async (overrideText?: string) => {
+    const text = (overrideText || input).trim()
+    if (!text || loading) return
 
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', content: text }])
     setLoading(true)
 
     try {
-      const res = await chatWithAI(userMessage, lang)
+      const res = await chatWithAI(text, lang)
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: res.reply,
         sources: res.sources,
         confidence: res.confidence,
       }])
+      trackChat(text, res.reply)
     } catch (err) {
       console.error('Chatbot API error:', err)
       setMessages(prev => [...prev, {
@@ -70,6 +105,56 @@ export default function ChatbotPage() {
 
   const handleVoiceTranscript = (text: string) => {
     setInput(text)
+  }
+
+  const findVoice = (): SpeechSynthesisVoice | null => {
+    const available = ttsVoices.length > 0 ? ttsVoices : window.speechSynthesis.getVoices()
+    if (available.length === 0) return null
+
+    const bcpTag = LANG_MAP[lang] || 'en-IN'
+
+    // 1) Exact BCP 47 match
+    const exact = available.find(v => v.lang === bcpTag)
+    if (exact) return exact
+
+    // 2) Language-only prefix match (e.g. 'bn' matches 'bn-BD', 'bn-IN')
+    const langRoot = bcpTag.split('-')[0]
+    const prefix = available.find(v => v.lang.startsWith(langRoot))
+    if (prefix) return prefix
+
+    // 3) Name-based fuzzy match (e.g. voice name contains "Bengali")
+    const names = LANG_NAMES[lang] || []
+    if (names.length > 0) {
+      const lower = names.map(n => n.toLowerCase())
+      const fuzzy = available.find(v =>
+        lower.some(l => v.name.toLowerCase().includes(l) || v.lang.toLowerCase().includes(l))
+      )
+      if (fuzzy) return fuzzy
+    }
+
+    return null
+  }
+
+  const speakMessage = (text: string, index: number) => {
+    window.speechSynthesis.cancel()
+    setSpeakingIndex(index)
+
+    const utterance = new SpeechSynthesisUtterance(text)
+    const bcpTag = LANG_MAP[lang] || 'en-IN'
+    utterance.lang = bcpTag
+
+    const voice = findVoice()
+    if (voice) utterance.voice = voice
+
+    utterance.onend = () => setSpeakingIndex(null)
+    utterance.onerror = () => setSpeakingIndex(null)
+
+    window.speechSynthesis.speak(utterance)
+  }
+
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel()
+    setSpeakingIndex(null)
   }
 
   return (
@@ -110,10 +195,19 @@ export default function ChatbotPage() {
                   </div>
                 )}
                 {msg.confidence && (
-                  <div className="mt-1">
+                  <div className="mt-1 flex items-center gap-2">
                     <span className={cn('text-xs font-medium', getConfidenceColor(msg.confidence))}>
                       {t('chat_confidence')}: {msg.confidence}
                     </span>
+                    {msg.role === 'assistant' && typeof window !== 'undefined' && 'speechSynthesis' in window && (
+                      <button
+                        onClick={() => speakingIndex === i ? stopSpeaking() : speakMessage(msg.content, i)}
+                        className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        title={speakingIndex === i ? 'Stop' : 'Read aloud'}
+                      >
+                        <Volume2 className={cn('w-3.5 h-3.5', speakingIndex === i ? 'text-primary-600' : 'text-gray-400')} />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -139,21 +233,31 @@ export default function ChatbotPage() {
 
         {/* Input */}
         <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <TransliterateInput
-                value={input}
-                onChange={(v) => setInput(v)}
-                onSubmit={handleSend}
-                lang={lang}
-                placeholder={t('chat_input_placeholder')}
-                id="chat-input"
+          <div className="flex flex-col gap-2">
+            {voiceStatus !== 'idle' && (
+              <div className="text-xs text-center text-gray-500 dark:text-gray-400 animate-pulse">
+                {voiceStatus === 'listening' ? 'Listening...' : 'Processing...'}
+              </div>
+            )}
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <TransliterateInput
+                  value={input}
+                  onChange={(v) => setInput(v)}
+                  onSubmit={() => { handleSend() }}
+                  placeholder={t('chat_input_placeholder')}
+                />
+              </div>
+              <VoiceButton
+                onTranscript={handleVoiceTranscript}
+                onSubmit={(text) => { setInput(text); handleSend(text) }}
+                onStateChange={setVoiceStatus}
+                language={lang}
               />
+              <Button onClick={() => { handleSend() }} disabled={loading || !input.trim()} className="h-14 px-6">
+                <Send className="w-5 h-5" />
+              </Button>
             </div>
-            <VoiceButton onTranscript={handleVoiceTranscript} />
-            <Button onClick={handleSend} disabled={loading || !input.trim()} className="h-14 px-6">
-              <Send className="w-5 h-5" />
-            </Button>
           </div>
         </div>
       </div>

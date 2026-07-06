@@ -16,6 +16,11 @@ venv/
 backend/venv/
 
 *.sqlite3
+*.tsbuildinfo
+*.tsbuildinfo.*
 # Logs
 *.log
 Thumbs.db
+.pytest_cache/
+frontend/out/
+data/translations/

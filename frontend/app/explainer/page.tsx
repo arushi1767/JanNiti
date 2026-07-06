@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/Button'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { SourceBadge } from '@/components/ui/SourceBadge'
@@ -93,6 +92,35 @@ export default function ExplainerPage() {
     }
   }
 
+  // LANGUAGE SWITCH FIX: when the user changes language after content has
+  // loaded, re-fetch everything that is on screen in the new language —
+  // no new search or refresh needed. (Previously only UI headings changed.)
+  useEffect(() => {
+    if (!result || !query.trim()) return
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      try {
+        const q = query.trim()
+        const [explainRes, eli5Res, condRes] = await Promise.all([
+          explainScheme({ query: q, language: lang }),
+          eli5 ? getELI5({ query: q, language: lang }) : Promise.resolve(null),
+          conditions ? detectConditions({ query: q, language: lang }) : Promise.resolve(null),
+        ])
+        if (cancelled) return
+        setResult(explainRes)
+        if (eli5Res) setEli5(eli5Res)
+        if (condRes) setConditions(condRes)
+      } catch (err) {
+        console.error('Language re-fetch error:', err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang])
+
   // Lazy-load the Simple Story only when its tab is opened
   const loadEli5 = async () => {
     if (eli5 || !query.trim()) return
@@ -167,6 +195,7 @@ export default function ExplainerPage() {
                   ministry={result.ministry}
                   lastUpdated={result.last_updated}
                   confidence={result.confidence}
+                  officialUrl={findScheme(query)?.official}
                 />
               </div>
             </div>
@@ -190,6 +219,13 @@ export default function ExplainerPage() {
                 {findScheme(query)!.apply.replace('https://', '')}
               </span>
             </a>
+          )}
+
+          {/* Application mode note: offline-only / hybrid schemes get honest guidance */}
+          {findScheme(query) && findScheme(query)!.mode !== 'online' && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-800 dark:text-blue-200">
+              {findScheme(query)!.mode === 'offline' ? t('apply_offline_note') : t('apply_hybrid_note')}
+            </div>
           )}
 
           {/* Tab Navigation */}
@@ -285,13 +321,22 @@ export default function ExplainerPage() {
                 </CardTitle>
                 <CardContent>
                   <ul className="space-y-2">
-                    {result.documents.map((d, i) => (
+                    {result.documents
+                      .filter((d) => !/^\s*note\s*:/i.test(d))
+                      .map((d, i) => (
                       <li key={i} className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
                         <FileCheck className="w-4 h-4 text-purple-400 mt-1 shrink-0" />
                         <span>{d}</span>
                       </li>
                     ))}
                   </ul>
+                  {result.documents.filter((d) => /^\s*note\s*:/i.test(d)).map((d, i) => (
+                    <div key={`note-${i}`}
+                      className="mt-4 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-sm text-red-600 dark:text-red-300">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                      <span>{d.replace(/^\s*note\s*:\s*/i, '')}</span>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
 

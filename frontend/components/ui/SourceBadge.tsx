@@ -7,10 +7,18 @@ interface SourceBadgeProps {
   lastUpdated?: string;
   confidence?: string;
   className?: string;
+  /** Official page of THIS scheme. When given, the badge links here instead
+   *  of falling back to a MyScheme search (fix: never link to listings). */
+  officialUrl?: string;
 }
 
+<<<<<<< HEAD
 export function SourceBadge({ source, ministry, lastUpdated, confidence, className = "" }: SourceBadgeProps) {
   const url = getSchemeUrl(source);
+=======
+export function SourceBadge({ source, ministry, lastUpdated, confidence, className = "", officialUrl }: SourceBadgeProps) {
+  const url = officialUrl || getSchemeUrl(source);
+>>>>>>> 7a88719 (Improve multilingual pipeline, translation, and UI)
   const confColor = confidence === 'High' ? 'text-green-600' : confidence === 'Medium' ? 'text-yellow-600' : 'text-red-600';
 
   return (

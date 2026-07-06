@@ -10,16 +10,34 @@ import { SCHEMES, schemeLabel, findScheme } from '@/lib/schemes'
 import { trackView, trackCompare } from '@/lib/services/activity'
 import { Loader2, ArrowRightLeft, CheckCircle2, Info, Sparkles } from 'lucide-react'
 
+interface ComparisonRow {
+  aspect: string
+  scheme1_value: string
+  scheme2_value: string
+}
+
+interface CompareResult {
+  scheme1_name: string
+  scheme2_name: string
+  comparisons: ComparisonRow[]
+  recommendation?: string
+}
+
+interface RecommendResult {
+  recommended_scheme?: string
+  reasoning: string
+}
+
 export default function ComparePage() {
   const { lang, t } = useLang()
   const [scheme1, setScheme1] = useState('')
   const [scheme2, setScheme2] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<CompareResult | null>(null)
   const [error, setError] = useState('')
   const [profile, setProfile] = useState<Record<string, string>>({})
   const [recLoading, setRecLoading] = useState(false)
-  const [rec, setRec] = useState<any>(null)
+  const [rec, setRec] = useState<RecommendResult | null>(null)
 
   const handleRecommend = async () => {
     if (!result) return
@@ -150,7 +168,7 @@ export default function ComparePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.comparisons?.map((comp: any, i: number) => (
+                  {result.comparisons?.map((comp: ComparisonRow, i: number) => (
                     <tr key={i} className="border-b border-gray-100 dark:border-gray-700 last:border-0">
                       <td className="px-4 py-4 text-sm font-medium text-gray-600 dark:text-gray-400 align-top">
                         <div className="flex items-center gap-2">

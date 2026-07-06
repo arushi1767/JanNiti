@@ -16,6 +16,7 @@ from services.data_service import search_schemes
 from services.rag_service import rag_service
 from services import ocr
 from utils.response import success_response, error_response
+from utils.language import validate_language
 
 logger = logging.getLogger("janniti.explainer")
 router = APIRouter(prefix="/api/explainer", tags=["Explainer"])
@@ -24,6 +25,7 @@ router = APIRouter(prefix="/api/explainer", tags=["Explainer"])
 @router.post("/explain")
 async def explain_scheme(query: PolicyQuery):
     try:
+        validate_language(query.language)
         result = generate_explainer(query.query, query.language, query.state)
         return success_response(result)
     except HTTPException:
@@ -36,6 +38,7 @@ async def explain_scheme(query: PolicyQuery):
 @router.post("/conditions")
 async def conditions(query: PolicyQuery):
     try:
+        validate_language(query.language)
         return success_response(detect_conditions(query.query, query.language))
     except Exception as e:
         logger.error(f"Conditions failed: {e}", exc_info=True)
@@ -45,6 +48,7 @@ async def conditions(query: PolicyQuery):
 @router.post("/eli5")
 async def eli5(query: PolicyQuery):
     try:
+        validate_language(query.language)
         return success_response(generate_eli5(query.query, query.language))
     except Exception as e:
         logger.error(f"ELI5 failed: {e}", exc_info=True)

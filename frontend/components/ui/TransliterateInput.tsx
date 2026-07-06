@@ -2,11 +2,9 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { useI18n } from "@/lib/i18n";
+import { API_BASE } from "@/lib/utils";
 
-const TRANSLITERATE_API =
-  process.env.NEXT_PUBLIC_API_URL
-    ? `${process.env.NEXT_PUBLIC_API_URL}/api/transliterate`
-    : "http://localhost:8000/api/transliterate";
+const TRANSLITERATE_API = `${API_BASE}/api/transliterate`;
 
 const LANG_LABELS: Record<string, string> = {
   hi: "अ",
@@ -112,6 +110,7 @@ export function TransliterateInput({ value, onChange, onSubmit, placeholder, cla
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
+          aria-label={placeholder || "Text input"}
           className={`flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-100 ${className}`}
         />
         {lang !== "en" && (

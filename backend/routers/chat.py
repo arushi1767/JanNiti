@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from models.schemas import ChatMessage, ChatResponse
 from services.ai_service import chat_with_ai
 from utils.response import success_response, error_response
+from utils.language import validate_language
 
 logger = logging.getLogger("janniti.chat")
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/api/chat", tags=["Chat"])
 @router.post("/message")
 async def chat(message: ChatMessage):
     try:
+        validate_language(message.language)
         result = chat_with_ai(
             message=message.message,
             conversation_history=message.conversation_history,

@@ -1,15 +1,12 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 
-export type LangCode = 'en' | 'hi' | 'bn' | 'ta'
+export type LangCode =
+  | 'en' | 'hi' | 'or' | 'as' | 'bn' | 'gu' | 'kn' | 'ml'
+  | 'mr' | 'pa' | 'ta' | 'te' | 'ur' | 'ks' | 'mai'
 
-export const LANGUAGES: { code: LangCode; label: string }[] = [
-  { code: 'en', label: 'English' },
-  { code: 'hi', label: 'हिन्दी' },
-  { code: 'bn', label: 'বাংলা' },
-  { code: 'ta', label: 'தமிழ்' },
-]
+const STORAGE_KEY = 'janniti_language'
 
 /**
  * Centralised UI translations. English is the base; every visible string has a
@@ -24,6 +21,8 @@ const STRINGS: Record<LangCode, Record<string, string>> = {
     nav_chat: 'AI Chat', nav_impact: 'Impact', select_language: 'Select language',
     choose_scheme: 'Choose a scheme...', explainer_pick: 'Pick a scheme to see a simple explanation', compare_title: 'Compare Policies', compare_sub: 'Side-by-side comparison of any two government schemes', compare_scheme1: 'Scheme 1', compare_scheme2: 'Scheme 2', compare_btn: 'Compare Schemes', compare_loading: 'Comparing...',
     apply_now: 'Apply Now', apply_sub: 'Opens the official government portal in a new tab',
+    apply_offline_note: 'This scheme is applied for offline — visit your bank branch / ration office / school with the required documents. The official portal above has instructions.',
+    apply_hybrid_note: 'You can start online here; final verification is completed at your bank branch / institution.',
     // hero
     badge_platform: "India's First Policy Literacy Platform",
     hero_1: 'Understand Every', hero_gov: 'Government Scheme', hero_2: 'in Simple Words',
@@ -31,7 +30,7 @@ const STRINGS: Record<LangCode, Record<string, string>> = {
     btn_search_scheme: 'Search a Scheme', btn_ask_ai: 'Ask AI',
     // stats
     stat_schemes_num: '18+', stat_schemes_label: 'Schemes Covered', stat_schemes_desc: 'Central & State schemes',
-    stat_langs_num: '4', stat_langs_label: 'Languages', stat_langs_desc: 'English + Indian languages',
+    stat_langs_num: '15', stat_langs_label: 'Languages', stat_langs_desc: 'English + Indian languages',
     stat_reading_num: 'Grade 6-8', stat_reading_label: 'Reading Level', stat_reading_desc: 'Ultra-simple explanations',
     stat_transparent_num: '100%', stat_transparent_label: 'Transparent', stat_transparent_desc: 'Sources & confidence levels',
     // features
@@ -162,12 +161,14 @@ const STRINGS: Record<LangCode, Record<string, string>> = {
     nav_chat: 'AI चैट', nav_impact: 'प्रभाव', select_language: 'भाषा चुनें',
     choose_scheme: 'एक योजना चुनें...', explainer_pick: 'सरल व्याख्या देखने के लिए एक योजना चुनें', compare_title: 'योजनाओं की तुलना', compare_sub: 'किन्हीं दो सरकारी योजनाओं की आमने-सामने तुलना', compare_scheme1: 'योजना 1', compare_scheme2: 'योजना 2', compare_btn: 'योजनाओं की तुलना करें', compare_loading: 'तुलना की जा रही है...',
     apply_now: 'अभी आवेदन करें', apply_sub: 'आधिकारिक सरकारी पोर्टल नई टैब में खुलेगा',
+    apply_offline_note: 'इस योजना के लिए आवेदन ऑफ़लाइन होता है — ज़रूरी दस्तावेज़ों के साथ अपनी बैंक शाखा / राशन कार्यालय / स्कूल जाएँ। ऊपर दिए आधिकारिक पोर्टल पर निर्देश उपलब्ध हैं।',
+    apply_hybrid_note: 'आप यहाँ ऑनलाइन शुरुआत कर सकते हैं; अंतिम सत्यापन आपकी बैंक शाखा / संस्थान में पूरा होता है।',
     badge_platform: 'भारत का पहला नीति साक्षरता मंच',
     hero_1: 'समझें हर', hero_gov: 'सरकारी योजना', hero_2: 'आसान शब्दों में',
     hero_sub: 'जननीति केंद्र और राज्य सरकार की योजनाओं को सरल भाषा में समझाता है। कोई कानूनी शब्दजाल नहीं। कोई उलझन नहीं। बस ऐसे स्पष्ट उत्तर जिन पर आप भरोसा कर सकें।',
     btn_search_scheme: 'योजना खोजें', btn_ask_ai: 'AI से पूछें',
     stat_schemes_num: '18+', stat_schemes_label: 'योजनाएँ शामिल', stat_schemes_desc: 'केंद्र व राज्य योजनाएँ',
-    stat_langs_num: '4', stat_langs_label: 'भाषाएँ', stat_langs_desc: 'अंग्रेज़ी + भारतीय भाषाएँ',
+    stat_langs_num: '15', stat_langs_label: 'भाषाएँ', stat_langs_desc: 'अंग्रेज़ी + भारतीय भाषाएँ',
     stat_reading_num: 'कक्षा 6-8', stat_reading_label: 'पठन स्तर', stat_reading_desc: 'बेहद सरल व्याख्या',
     stat_transparent_num: '100%', stat_transparent_label: 'पारदर्शी', stat_transparent_desc: 'स्रोत व विश्वास स्तर',
     features_heading: 'जननीति पर आप क्या कर सकते हैं?',
@@ -260,12 +261,14 @@ const STRINGS: Record<LangCode, Record<string, string>> = {
     nav_chat: 'AI চ্যাট', nav_impact: 'প্রভাব', select_language: 'ভাষা নির্বাচন করুন',
     choose_scheme: 'একটি প্রকল্প বেছে নিন...', explainer_pick: 'সহজ ব্যাখ্যা দেখতে একটি প্রকল্প বেছে নিন', compare_title: 'প্রকল্প তুলনা', compare_sub: 'যেকোনো দুটি সরকারি প্রকল্পের পাশাপাশি তুলনা', compare_scheme1: 'প্রকল্প ১', compare_scheme2: 'প্রকল্প ২', compare_btn: 'প্রকল্প তুলনা করুন', compare_loading: 'তুলনা করা হচ্ছে...',
     apply_now: 'এখনই আবেদন করুন', apply_sub: 'অফিসিয়াল সরকারি পোর্টাল নতুন ট্যাবে খুলবে',
+    apply_offline_note: 'এই প্রকল্পের আবেদন অফলাইনে হয় — প্রয়োজনীয় নথিসহ আপনার ব্যাংক শাখা / রেশন অফিস / স্কুলে যান। উপরের অফিসিয়াল পোর্টালে নির্দেশনা আছে।',
+    apply_hybrid_note: 'আপনি এখানে অনলাইনে শুরু করতে পারেন; চূড়ান্ত যাচাই আপনার ব্যাংক শাখা / প্রতিষ্ঠানে সম্পন্ন হয়।',
     badge_platform: 'ভারতের প্রথম নীতি সাক্ষরতা প্ল্যাটফর্ম',
     hero_1: 'বুঝে নিন প্রতিটি', hero_gov: 'সরকারি প্রকল্প', hero_2: 'সহজ ভাষায়',
     hero_sub: 'জননীতি কেন্দ্র ও রাজ্য সরকারের প্রকল্পগুলি সহজ ভাষায় ব্যাখ্যা করে। কোনও আইনি জটিলতা নেই। কোনও বিভ্রান্তি নেই। শুধু স্পষ্ট উত্তর যা আপনি বিশ্বাস করতে পারেন।',
     btn_search_scheme: 'প্রকল্প খুঁজুন', btn_ask_ai: 'AI-কে জিজ্ঞাসা করুন',
     stat_schemes_num: '18+', stat_schemes_label: 'অন্তর্ভুক্ত প্রকল্প', stat_schemes_desc: 'কেন্দ্র ও রাজ্য প্রকল্প',
-    stat_langs_num: '4', stat_langs_label: 'ভাষা', stat_langs_desc: 'ইংরেজি + ভারতীয় ভাষা',
+    stat_langs_num: '15', stat_langs_label: 'ভাষা', stat_langs_desc: 'ইংরেজি + ভারতীয় ভাষা',
     stat_reading_num: 'শ্রেণি 6-8', stat_reading_label: 'পঠন স্তর', stat_reading_desc: 'অত্যন্ত সহজ ব্যাখ্যা',
     stat_transparent_num: '100%', stat_transparent_label: 'স্বচ্ছ', stat_transparent_desc: 'উৎস ও আস্থার স্তর',
     features_heading: 'জননীতিতে আপনি কী করতে পারেন?',
@@ -358,12 +361,14 @@ const STRINGS: Record<LangCode, Record<string, string>> = {
     nav_chat: 'AI அரட்டை', nav_impact: 'தாக்கம்', select_language: 'மொழியைத் தேர்ந்தெடுக்கவும்',
     choose_scheme: 'ஒரு திட்டத்தைத் தேர்வுசெய்க...', explainer_pick: 'எளிய விளக்கம் பார்க்க ஒரு திட்டத்தைத் தேர்வுசெய்க', compare_title: 'திட்ட ஒப்பீடு', compare_sub: 'எந்த இரண்டு அரசுத் திட்டங்களின் பக்கவாட்டு ஒப்பீடு', compare_scheme1: 'திட்டம் 1', compare_scheme2: 'திட்டம் 2', compare_btn: 'திட்டங்களை ஒப்பிடு', compare_loading: 'ஒப்பிடப்படுகிறது...',
     apply_now: 'இப்போது விண்ணப்பிக்கவும்', apply_sub: 'அதிகாரப்பூர்வ அரசு போர்டல் புதிய தாவலில் திறக்கும்',
+    apply_offline_note: 'இத்திட்டத்திற்கான விண்ணப்பம் ஆஃப்லைனில் நடைபெறும் — தேவையான ஆவணங்களுடன் உங்கள் வங்கிக் கிளை / ரேஷன் அலுவலகம் / பள்ளிக்குச் செல்லவும். மேலே உள்ள அதிகாரப்பூர்வ போர்டலில் வழிமுறைகள் உள்ளன.',
+    apply_hybrid_note: 'இங்கே ஆன்லைனில் தொடங்கலாம்; இறுதிச் சரிபார்ப்பு உங்கள் வங்கிக் கிளை / நிறுவனத்தில் முடிக்கப்படும்.',
     badge_platform: 'இந்தியாவின் முதல் கொள்கை எழுத்தறிவு தளம்',
     hero_1: 'புரிந்துகொள்ளுங்கள் ஒவ்வொரு', hero_gov: 'அரசுத் திட்டத்தையும்', hero_2: 'எளிய சொற்களில்',
     hero_sub: 'ஜன்நீதி மத்திய மற்றும் மாநில அரசுத் திட்டங்களை எளிய மொழியில் விளக்குகிறது. சட்டச் சிக்கல்கள் இல்லை. குழப்பம் இல்லை. நீங்கள் நம்பக்கூடிய தெளிவான பதில்கள் மட்டுமே.',
     btn_search_scheme: 'திட்டத்தைத் தேடுங்கள்', btn_ask_ai: 'AI-யிடம் கேளுங்கள்',
     stat_schemes_num: '18+', stat_schemes_label: 'திட்டங்கள்', stat_schemes_desc: 'மத்திய & மாநிலத் திட்டங்கள்',
-    stat_langs_num: '4', stat_langs_label: 'மொழிகள்', stat_langs_desc: 'ஆங்கிலம் + இந்திய மொழிகள்',
+    stat_langs_num: '15', stat_langs_label: 'மொழிகள்', stat_langs_desc: 'ஆங்கிலம் + இந்திய மொழிகள்',
     stat_reading_num: 'வகுப்பு 6-8', stat_reading_label: 'வாசிப்பு நிலை', stat_reading_desc: 'மிக எளிய விளக்கங்கள்',
     stat_transparent_num: '100%', stat_transparent_label: 'வெளிப்படை', stat_transparent_desc: 'ஆதாரங்கள் & நம்பிக்கை நிலைகள்',
     features_heading: 'ஜன்நீதியில் நீங்கள் என்ன செய்யலாம்?',
@@ -450,6 +455,141 @@ const STRINGS: Record<LangCode, Record<string, string>> = {
     reg_step_location: 'இருப்பிடம்',
     reg_step_socioeconomic: 'சமூக-பொருளாதார விவரங்கள்',
     reg_step_review: 'மதிப்பாய்வு செய்யவும்',
+<<<<<<< HEAD
+=======
+  },
+  // ------------------------------------------------------------------------
+  // Core UI strings for the additional MyScheme languages. Any key missing
+  // here automatically falls back to English (see t() below). AI content is
+  // fully translated by the backend for every language.
+  // ------------------------------------------------------------------------
+  te: {
+    nav_home: 'హోమ్', nav_explainer: 'వివరణ', nav_compare: 'పోల్చండి', nav_chat: 'AI చాట్', nav_impact: 'ప్రభావం',
+    select_language: 'భాషను ఎంచుకోండి', choose_scheme: 'ఒక పథకాన్ని ఎంచుకోండి...',
+    apply_now: 'ఇప్పుడే దరఖాస్తు చేయండి', explain_btn: 'పథకాన్ని వివరించండి', researching: 'వెతుకుతోంది...',
+    compare_title: 'పథకాలను పోల్చండి', compare_btn: 'పథకాలను పోల్చండి',
+    tab_explanation: 'వివరణ', tab_story: 'సరళమైన కథ', tab_hidden: 'దాచిన నియమాలు',
+    q_what_is: 'ఈ పథకం ఏమిటి?', q_why: 'ఎందుకు ప్రవేశపెట్టారు?', q_benefits: 'మీకు ఏ ప్రయోజనాలు లభిస్తాయి?',
+    q_eligible: 'ఎవరు అర్హులు?', q_documents: 'అవసరమైన పత్రాలు', q_how_apply: 'దరఖాస్తు ఎలా చేయాలి',
+    q_deadlines: 'ముఖ్యమైన తేదీలు', q_clauses: 'తరచుగా తప్పుగా అర్థం చేసుకునే నియమాలు',
+    hero_1: 'ప్రతి', hero_gov: 'ప్రభుత్వ పథకాన్ని', hero_2: 'సులభమైన మాటల్లో అర్థం చేసుకోండి',
+    btn_search_scheme: 'పథకాన్ని వెతకండి', btn_ask_ai: 'AIని అడగండి',
+    chat_input_placeholder: 'ఏదైనా పథకం గురించి ప్రశ్న అడగండి...',
+  },
+  mr: {
+    nav_home: 'मुख्यपृष्ठ', nav_explainer: 'स्पष्टीकरण', nav_compare: 'तुलना', nav_chat: 'AI चॅट', nav_impact: 'प्रभाव',
+    select_language: 'भाषा निवडा', choose_scheme: 'एक योजना निवडा...',
+    apply_now: 'आता अर्ज करा', explain_btn: 'योजना समजावून सांगा', researching: 'शोधत आहे...',
+    compare_title: 'योजनांची तुलना करा', compare_btn: 'योजनांची तुलना करा',
+    tab_explanation: 'स्पष्टीकरण', tab_story: 'सोपी गोष्ट', tab_hidden: 'लपलेले नियम',
+    q_what_is: 'ही योजना काय आहे?', q_why: 'ती का सुरू केली?', q_benefits: 'कोणते फायदे मिळतात?',
+    q_eligible: 'कोण पात्र आहे?', q_documents: 'आवश्यक कागदपत्रे', q_how_apply: 'अर्ज कसा करावा',
+    q_deadlines: 'महत्त्वाच्या तारखा', q_clauses: 'सामान्यतः गैरसमज होणारे नियम',
+    hero_1: 'प्रत्येक', hero_gov: 'सरकारी योजना', hero_2: 'सोप्या शब्दांत समजून घ्या',
+    btn_search_scheme: 'योजना शोधा', btn_ask_ai: 'AI ला विचारा',
+    chat_input_placeholder: 'कोणत्याही योजनेबद्दल प्रश्न विचारा...',
+  },
+  gu: {
+    nav_home: 'હોમ', nav_explainer: 'સમજૂતી', nav_compare: 'સરખામણી', nav_chat: 'AI ચેટ', nav_impact: 'અસર',
+    select_language: 'ભાષા પસંદ કરો', choose_scheme: 'એક યોજના પસંદ કરો...',
+    apply_now: 'હમણાં અરજી કરો', explain_btn: 'યોજના સમજાવો', researching: 'શોધી રહ્યું છે...',
+    compare_title: 'યોજનાઓની સરખામણી', compare_btn: 'યોજનાઓની સરખામણી કરો',
+    tab_explanation: 'સમજૂતી', tab_story: 'સરળ વાર્તા', tab_hidden: 'છુપાયેલા નિયમો',
+    q_what_is: 'આ યોજના શું છે?', q_why: 'કેમ શરૂ કરી?', q_benefits: 'કયા લાભ મળે છે?',
+    q_eligible: 'કોણ પાત્ર છે?', q_documents: 'જરૂરી દસ્તાવેજો', q_how_apply: 'અરજી કેવી રીતે કરવી',
+    q_deadlines: 'મહત્વની તારીખો', q_clauses: 'સામાન્ય રીતે ગેરસમજ થતા નિયમો',
+    hero_1: 'દરેક', hero_gov: 'સરકારી યોજના', hero_2: 'સરળ શબ્દોમાં સમજો',
+    btn_search_scheme: 'યોજના શોધો', btn_ask_ai: 'AI ને પૂછો',
+    chat_input_placeholder: 'કોઈપણ યોજના વિશે પ્રશ્ન પૂછો...',
+  },
+  kn: {
+    nav_home: 'ಮುಖಪುಟ', nav_explainer: 'ವಿವರಣೆ', nav_compare: 'ಹೋಲಿಕೆ', nav_chat: 'AI ಚಾಟ್', nav_impact: 'ಪರಿಣಾಮ',
+    select_language: 'ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ', choose_scheme: 'ಒಂದು ಯೋಜನೆ ಆಯ್ಕೆಮಾಡಿ...',
+    apply_now: 'ಈಗ ಅರ್ಜಿ ಸಲ್ಲಿಸಿ', explain_btn: 'ಯೋಜನೆ ವಿವರಿಸಿ', researching: 'ಹುಡುಕುತ್ತಿದೆ...',
+    compare_title: 'ಯೋಜನೆಗಳ ಹೋಲಿಕೆ', compare_btn: 'ಯೋಜನೆಗಳನ್ನು ಹೋಲಿಸಿ',
+    tab_explanation: 'ವಿವರಣೆ', tab_story: 'ಸರಳ ಕಥೆ', tab_hidden: 'ಗುಪ್ತ ನಿಯಮಗಳು',
+    q_what_is: 'ಈ ಯೋಜನೆ ಏನು?', q_why: 'ಏಕೆ ಪ್ರಾರಂಭಿಸಲಾಯಿತು?', q_benefits: 'ಯಾವ ಪ್ರಯೋಜನಗಳು ಸಿಗುತ್ತವೆ?',
+    q_eligible: 'ಯಾರು ಅರ್ಹರು?', q_documents: 'ಅಗತ್ಯ ದಾಖಲೆಗಳು', q_how_apply: 'ಅರ್ಜಿ ಹೇಗೆ ಸಲ್ಲಿಸುವುದು',
+    q_deadlines: 'ಪ್ರಮುಖ ದಿನಾಂಕಗಳು', q_clauses: 'ಸಾಮಾನ್ಯವಾಗಿ ತಪ್ಪಾಗಿ ಅರ್ಥೈಸುವ ನಿಯಮಗಳು',
+    hero_1: 'ಪ್ರತಿ', hero_gov: 'ಸರ್ಕಾರಿ ಯೋಜನೆಯನ್ನು', hero_2: 'ಸರಳ ಪದಗಳಲ್ಲಿ ಅರ್ಥಮಾಡಿಕೊಳ್ಳಿ',
+    btn_search_scheme: 'ಯೋಜನೆ ಹುಡುಕಿ', btn_ask_ai: 'AI ಕೇಳಿ',
+    chat_input_placeholder: 'ಯಾವುದೇ ಯೋಜನೆಯ ಬಗ್ಗೆ ಪ್ರಶ್ನೆ ಕೇಳಿ...',
+  },
+  ml: {
+    nav_home: 'ഹോം', nav_explainer: 'വിശദീകരണം', nav_compare: 'താരതമ്യം', nav_chat: 'AI ചാറ്റ്', nav_impact: 'സ്വാധീനം',
+    select_language: 'ഭാഷ തിരഞ്ഞെടുക്കുക', choose_scheme: 'ഒരു പദ്ധതി തിരഞ്ഞെടുക്കുക...',
+    apply_now: 'ഇപ്പോൾ അപേക്ഷിക്കുക', explain_btn: 'പദ്ധതി വിശദീകരിക്കുക', researching: 'തിരയുന്നു...',
+    compare_title: 'പദ്ധതികൾ താരതമ്യം ചെയ്യുക', compare_btn: 'പദ്ധതികൾ താരതമ്യം ചെയ്യുക',
+    tab_explanation: 'വിശദീകരണം', tab_story: 'ലളിതമായ കഥ', tab_hidden: 'മറഞ്ഞിരിക്കുന്ന നിയമങ്ങൾ',
+    q_what_is: 'ഈ പദ്ധതി എന്താണ്?', q_why: 'എന്തിനാണ് തുടങ്ങിയത്?', q_benefits: 'എന്ത് ആനുകൂല്യങ്ങൾ ലഭിക്കും?',
+    q_eligible: 'ആർക്കൊക്കെ അർഹതയുണ്ട്?', q_documents: 'ആവശ്യമായ രേഖകൾ', q_how_apply: 'എങ്ങനെ അപേക്ഷിക്കാം',
+    q_deadlines: 'പ്രധാന തീയതികൾ', q_clauses: 'സാധാരണ തെറ്റിദ്ധരിക്കപ്പെടുന്ന നിയമങ്ങൾ',
+    hero_1: 'എല്ലാ', hero_gov: 'സർക്കാർ പദ്ധതികളും', hero_2: 'ലളിതമായ വാക്കുകളിൽ മനസ്സിലാക്കൂ',
+    btn_search_scheme: 'പദ്ധതി തിരയുക', btn_ask_ai: 'AI-യോട് ചോദിക്കുക',
+    chat_input_placeholder: 'ഏത് പദ്ധതിയെക്കുറിച്ചും ചോദ്യം ചോദിക്കുക...',
+  },
+  pa: {
+    nav_home: 'ਹੋਮ', nav_explainer: 'ਵਿਆਖਿਆ', nav_compare: 'ਤੁਲਨਾ', nav_chat: 'AI ਚੈਟ', nav_impact: 'ਪ੍ਰਭਾਵ',
+    select_language: 'ਭਾਸ਼ਾ ਚੁਣੋ', choose_scheme: 'ਇੱਕ ਯੋਜਨਾ ਚੁਣੋ...',
+    apply_now: 'ਹੁਣੇ ਅਰਜ਼ੀ ਦਿਓ', explain_btn: 'ਯੋਜਨਾ ਸਮਝਾਓ', researching: 'ਖੋਜ ਰਿਹਾ ਹੈ...',
+    compare_title: 'ਯੋਜਨਾਵਾਂ ਦੀ ਤੁਲਨਾ', compare_btn: 'ਯੋਜਨਾਵਾਂ ਦੀ ਤੁਲਨਾ ਕਰੋ',
+    tab_explanation: 'ਵਿਆਖਿਆ', tab_story: 'ਸੌਖੀ ਕਹਾਣੀ', tab_hidden: 'ਲੁਕੇ ਹੋਏ ਨਿਯਮ',
+    q_what_is: 'ਇਹ ਯੋਜਨਾ ਕੀ ਹੈ?', q_why: 'ਕਿਉਂ ਸ਼ੁਰੂ ਕੀਤੀ ਗਈ?', q_benefits: 'ਕਿਹੜੇ ਲਾਭ ਮਿਲਦੇ ਹਨ?',
+    q_eligible: 'ਕੌਣ ਯੋਗ ਹੈ?', q_documents: 'ਲੋੜੀਂਦੇ ਦਸਤਾਵੇਜ਼', q_how_apply: 'ਅਰਜ਼ੀ ਕਿਵੇਂ ਦੇਣੀ ਹੈ',
+    q_deadlines: 'ਮਹੱਤਵਪੂਰਨ ਤਾਰੀਖਾਂ', q_clauses: 'ਆਮ ਤੌਰ ਤੇ ਗਲਤ ਸਮਝੇ ਜਾਂਦੇ ਨਿਯਮ',
+    hero_1: 'ਹਰ', hero_gov: 'ਸਰਕਾਰੀ ਯੋਜਨਾ ਨੂੰ', hero_2: 'ਸੌਖੇ ਸ਼ਬਦਾਂ ਵਿੱਚ ਸਮਝੋ',
+    btn_search_scheme: 'ਯੋਜਨਾ ਖੋਜੋ', btn_ask_ai: 'AI ਨੂੰ ਪੁੱਛੋ',
+    chat_input_placeholder: 'ਕਿਸੇ ਵੀ ਯੋਜਨਾ ਬਾਰੇ ਸਵਾਲ ਪੁੱਛੋ...',
+  },
+  or: {
+    nav_home: 'ହୋମ୍', nav_explainer: 'ବ୍ୟାଖ୍ୟା', nav_compare: 'ତୁଳନା', nav_chat: 'AI ଚାଟ୍', nav_impact: 'ପ୍ରଭାବ',
+    select_language: 'ଭାଷା ବାଛନ୍ତୁ', choose_scheme: 'ଏକ ଯୋଜନା ବାଛନ୍ତୁ...',
+    apply_now: 'ବର୍ତ୍ତମାନ ଆବେଦନ କରନ୍ତୁ', explain_btn: 'ଯୋଜନା ବୁଝାନ୍ତୁ', researching: 'ଖୋଜୁଛି...',
+    compare_title: 'ଯୋଜନା ତୁଳନା', compare_btn: 'ଯୋଜନା ତୁଳନା କରନ୍ତୁ',
+    tab_explanation: 'ବ୍ୟାଖ୍ୟା', tab_story: 'ସରଳ କାହାଣୀ', tab_hidden: 'ଲୁକ୍କାୟିତ ନିୟମ',
+    q_what_is: 'ଏହି ଯୋଜନା କଣ?', q_why: 'କାହିଁକି ଆରମ୍ଭ ହେଲା?', q_benefits: 'କେଉଁ ଲାଭ ମିଳେ?',
+    q_eligible: 'କିଏ ଯୋଗ୍ୟ?', q_documents: 'ଆବଶ୍ୟକ ଦଲିଲ', q_how_apply: 'କିପରି ଆବେଦନ କରିବେ',
+    q_deadlines: 'ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ ତାରିଖ', q_clauses: 'ସାଧାରଣତଃ ଭୁଲ ବୁଝାଯାଉଥିବା ନିୟମ',
+    hero_1: 'ପ୍ରତ୍ୟେକ', hero_gov: 'ସରକାରୀ ଯୋଜନାକୁ', hero_2: 'ସରଳ ଶବ୍ଦରେ ବୁଝନ୍ତୁ',
+    btn_search_scheme: 'ଯୋଜନା ଖୋଜନ୍ତୁ', btn_ask_ai: 'AI କୁ ପଚାରନ୍ତୁ',
+    chat_input_placeholder: 'ଯେକୌଣସି ଯୋଜନା ବିଷୟରେ ପ୍ରଶ୍ନ ପଚାରନ୍ତୁ...',
+  },
+  as: {
+    nav_home: 'হোম', nav_explainer: 'ব্যাখ্যা', nav_compare: 'তুলনা', nav_chat: 'AI চেট', nav_impact: 'প্ৰভাৱ',
+    select_language: 'ভাষা বাছনি কৰক', choose_scheme: 'এখন আঁচনি বাছনি কৰক...',
+    apply_now: 'এতিয়াই আবেদন কৰক', explain_btn: 'আঁচনি বুজাই দিয়ক', researching: 'বিচাৰি আছে...',
+    compare_title: 'আঁচনিৰ তুলনা', compare_btn: 'আঁচনি তুলনা কৰক',
+    tab_explanation: 'ব্যাখ্যা', tab_story: 'সৰল কাহিনী', tab_hidden: 'লুকাই থকা নিয়ম',
+    q_what_is: 'এই আঁচনিখন কি?', q_why: 'কিয় আৰম্ভ কৰা হৈছিল?', q_benefits: 'কি লাভ পোৱা যায়?',
+    q_eligible: 'কোন যোগ্য?', q_documents: 'প্ৰয়োজনীয় নথি-পত্ৰ', q_how_apply: 'কেনেকৈ আবেদন কৰিব',
+    q_deadlines: 'গুৰুত্বপূৰ্ণ তাৰিখ', q_clauses: 'সাধাৰণতে ভুলকৈ বুজা নিয়ম',
+    hero_1: 'প্ৰতিখন', hero_gov: 'চৰকাৰী আঁচনি', hero_2: 'সৰল ভাষাত বুজক',
+    btn_search_scheme: 'আঁচনি বিচাৰক', btn_ask_ai: 'AI ক সোধক',
+    chat_input_placeholder: 'যিকোনো আঁচনিৰ বিষয়ে প্ৰশ্ন সোধক...',
+  },
+  ur: {
+    nav_home: 'ہوم', nav_explainer: 'وضاحت', nav_compare: 'موازنہ', nav_chat: 'AI چیٹ', nav_impact: 'اثر',
+    select_language: 'زبان منتخب کریں', choose_scheme: 'ایک اسکیم منتخب کریں...',
+    apply_now: 'ابھی درخواست دیں', explain_btn: 'اسکیم کی وضاحت کریں', researching: 'تلاش جاری ہے...',
+    compare_title: 'اسکیموں کا موازنہ', compare_btn: 'اسکیموں کا موازنہ کریں',
+    tab_explanation: 'وضاحت', tab_story: 'آسان کہانی', tab_hidden: 'پوشیدہ قواعد',
+    q_what_is: 'یہ اسکیم کیا ہے؟', q_why: 'کیوں شروع کی گئی؟', q_benefits: 'کیا فوائد ملتے ہیں؟',
+    q_eligible: 'کون اہل ہے؟', q_documents: 'مطلوبہ دستاویزات', q_how_apply: 'درخواست کیسے دیں',
+    q_deadlines: 'اہم تاریخیں', q_clauses: 'عام طور پر غلط سمجھے جانے والے قواعد',
+    hero_1: 'ہر', hero_gov: 'سرکاری اسکیم کو', hero_2: 'آسان الفاظ میں سمجھیں',
+    btn_search_scheme: 'اسکیم تلاش کریں', btn_ask_ai: 'AI سے پوچھیں',
+    chat_input_placeholder: 'کسی بھی اسکیم کے بارے میں سوال پوچھیں...',
+  },
+  // Kashmiri and Maithili: UI falls back to English; AI answers are fully
+  // translated by the backend when these languages are selected.
+  ks: {},
+  mai: {
+    nav_home: 'होम', nav_explainer: 'व्याख्या', nav_compare: 'तुलना', nav_chat: 'AI चैट', nav_impact: 'प्रभाव',
+    select_language: 'भाषा चुनू', choose_scheme: 'एकटा योजना चुनू...',
+    apply_now: 'आब आवेदन करू', explain_btn: 'योजना बुझाउ', researching: 'ताकि रहल अछि...',
+    q_what_is: 'ई योजना की अछि?', q_benefits: 'की लाभ भेटैत अछि?', q_eligible: 'के योग्य अछि?',
+    q_documents: 'आवश्यक कागजात', q_how_apply: 'आवेदन कोना करी',
+>>>>>>> 7a88719 (Improve multilingual pipeline, translation, and UI)
   },
 }
 

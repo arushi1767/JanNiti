@@ -10,6 +10,7 @@ Fixes from the review:
   * bug #7 (silent errors): replaced bare print with structured logging.
   * bug #5 (fragile pre-built DB): added ensure_populated() so the server can
     rebuild the index on startup if the persisted collection is empty.
+  * v2.1: score threshold, language-filter fallback, reranking scaffolding.
 """
 import os
 import hashlib
@@ -80,26 +81,48 @@ class RAGService:
             return []
         try:
             query_embedding = self.embedder.encode(query).tolist()
-            results = self.collection.query(query_embeddings=[query_embedding], n_results=top_k)
+            if language != "en":
+                where_filter = {"language": language}
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=top_k * 2,
+                    where=where_filter,
+                )
+                if not results.get("documents") or not results["documents"][0]:
+                    if config.RAG_LANGUAGE_FALLBACK:
+                        logger.info("language filter returned 0 results, falling back to multilingual")
+                        results = self.collection.query(
+                            query_embeddings=[query_embedding],
+                            n_results=top_k * 2,
+                        )
+                    else:
+                        return []
+            else:
+                results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=top_k * 2,
+                )
         except Exception as e:
             logger.error(f"search failed: {e}", exc_info=True)
             return []
+
         documents = []
         if results.get("documents") and results["documents"][0]:
             for i, doc in enumerate(results["documents"][0]):
+                distance = results["distances"][0][i] if results.get("distances") else 0
+                score = 1.0 - distance
+                if score < config.MIN_RETRIEVAL_SCORE:
+                    continue
                 documents.append({
                     "text": doc,
                     "metadata": results["metadatas"][0][i] if results.get("metadatas") else {},
-                    "distance": results["distances"][0][i] if results.get("distances") else 0,
+                    "distance": distance,
+                    "score": score,
                 })
-        return documents
+        return documents[:top_k]
 
     def get_policy_context(self, policy_name: str) -> Optional[dict]:
-        """Find the chunk whose `name` metadata best matches policy_name.
-
-        FIX (bug #4): retrieve top vector matches, then filter by substring on
-        the name field in Python — Chroma's metadata `where` can't do substring.
-        """
+        """Find the chunk whose `name` metadata best matches policy_name."""
         if not self._available:
             return None
         try:
@@ -111,12 +134,10 @@ class RAGService:
         docs = results.get("documents", [[]])[0]
         metas = results.get("metadatas", [[]])[0] if results.get("metadatas") else []
         needle = policy_name.lower().strip()
-        # 1) exact/substring match on name metadata
         for i, doc in enumerate(docs):
             name = (metas[i].get("name", "") if i < len(metas) else "").lower()
             if needle and (needle in name or name in needle):
                 return {"text": doc, "metadata": metas[i] if i < len(metas) else {}}
-        # 2) otherwise fall back to the closest vector match
         if docs:
             return {"text": docs[0], "metadata": metas[0] if metas else {}}
         return None
@@ -130,11 +151,7 @@ class RAGService:
             return 0
 
     def ensure_populated(self) -> int:
-        """Rebuild the index from the PDFs if the collection is empty.
-
-        Returns the document count after the check. Safe to call on every
-        startup — it only ingests when count == 0.
-        """
+        """Rebuild the index from the PDFs if the collection is empty."""
         if not self._available:
             logger.warning("ensure_populated: RAG unavailable, skipping.")
             return 0

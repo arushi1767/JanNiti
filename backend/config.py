@@ -7,6 +7,8 @@ with sensible defaults, so the same code runs locally and on a cloud host
 without edits. See .env.example for the full list.
 """
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def _csv(name: str, default: str) -> list:
@@ -19,7 +21,7 @@ def _csv(name: str, default: str) -> list:
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -35,9 +37,24 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
 # Rebuild the vector index on startup if the collection is empty.
 AUTO_INGEST_ON_START = os.getenv("AUTO_INGEST_ON_START", "true").lower() == "true"
 
-# ---- research feature flags ------------------------------------------
+# ---- faithfulness / hallucination safeguards -------------------------
 ENABLE_FAITHFULNESS = os.getenv("ENABLE_FAITHFULNESS", "true").lower() == "true"
 ENABLE_SELECTIVE_RETRIEVAL = os.getenv("ENABLE_SELECTIVE_RETRIEVAL", "true").lower() == "true"
+
+# Lower temperature for factual, retrieval-grounded responses.
+LLM_TEMPERATURE_FACTUAL = float(os.getenv("LLM_TEMPERATURE_FACTUAL", "0.1"))
+
+# Minimum retrieval similarity to consider a result usable (cosine distance,
+# lower = closer; Chroma returns L2 distance by default, so we use a
+# conservative threshold that maps to ~0.85 cosine similarity).
+MIN_RETRIEVAL_SCORE = float(os.getenv("MIN_RETRIEVAL_SCORE", "0.6"))
+
+# Minimum number of chunks that must pass the threshold before we answer.
+MIN_RETRIEVAL_CHUNKS = int(os.getenv("MIN_RETRIEVAL_CHUNKS", "1"))
+
+# Language filter fallback: when metadata filtering returns zero results,
+# fall back to multilingual retrieval instead of returning empty.
+RAG_LANGUAGE_FALLBACK = os.getenv("RAG_LANGUAGE_FALLBACK", "true").lower() == "true"
 
 # ---- CORS -------------------------------------------------------------
 CORS_ORIGINS = _csv(

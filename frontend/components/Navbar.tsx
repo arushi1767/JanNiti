@@ -21,6 +21,28 @@ const NAV_ITEMS = [
   { href: '/dashboard', key: 'nav_impact', icon: BarChart3 },
 ]
 
+/** Shows /public/logo.png ONLY after it successfully loads; otherwise a clean
+ *  tricolor "JanNiti" wordmark. No broken-image icon ever. */
+function LogoMark() {
+  const [logoOk, setLogoOk] = useState(false)
+  useEffect(() => {
+    const img = new window.Image()
+    img.onload = () => setLogoOk(true)
+    img.onerror = () => setLogoOk(false)
+    img.src = '/logo.png'
+  }, [])
+  if (logoOk) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src="/logo.png" alt="JanNiti" className="h-16 md:h-[4.5rem] w-auto max-w-[340px] object-contain" />
+  }
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Shield className="w-7 h-7 text-safron-500" />
+      <span>Jan<span className="text-green-600 dark:text-green-400">Niti</span></span>
+    </span>
+  )
+}
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isDark, setIsDark] = useState(false)
@@ -49,11 +71,20 @@ export function Navbar() {
     <>
       <nav className="sticky top-0 z-30 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800" role="navigation" aria-label="Main navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<<<<<<< HEAD
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-1">
               <Link href="/" className="flex items-center gap-2 text-xl font-bold text-primary-700 dark:text-primary-400" aria-label="JanNiti Home">
                 <Shield className="w-7 h-7 text-safron-500" />
                 <span>JanNiti</span>
+=======
+          <div className="flex items-center justify-between h-20">
+            <div className="flex items-center gap-1">
+              <Link href="/" className="flex items-center gap-2 text-xl font-bold text-primary-700 dark:text-primary-400" aria-label="JanNiti Home">
+                {/* Save your logo at frontend/public/logo.png to show it.
+                    Until then, a clean tricolor wordmark shows (no broken icon). */}
+                <LogoMark />
+>>>>>>> 7a88719 (Improve multilingual pipeline, translation, and UI)
               </Link>
               {/* Profile icon — left side, next to logo */}
               <button

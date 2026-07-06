@@ -90,7 +90,7 @@ def ingest_markdown_kb() -> dict:
             for pi, piece in enumerate(pieces):
                 docs.append(f"{name} — {title}\n{piece}")
                 metas.append({"source": source, "name": name, "section": title,
-                              "tags": tags, "type": "scheme_md"})
+                              "tags": tags, "type": "scheme_md", "language": "en"})
                 ids.append(f"{os.path.basename(fp)}_{si}_{pi}")
         rag_service.add_documents_batch(documents=docs, metadatas=metas, ids=ids)
         total += len(docs)
@@ -120,7 +120,7 @@ def ingest_text_kb() -> dict:
         else:
             body = raw
         chunks = splitter.split_text(body)
-        metas = [{"source": os.path.basename(fp), "name": name, "type": "scheme_text"} for _ in chunks]
+        metas = [{"source": os.path.basename(fp), "name": name, "type": "scheme_text", "language": "en"} for _ in chunks]
         ids = [f"{os.path.basename(fp)}_{i}" for i in range(len(chunks))]
         rag_service.add_documents_batch(documents=chunks, metadatas=metas, ids=ids)
         total += len(chunks); processed.append(name)
@@ -173,7 +173,7 @@ def ingest_pdfs() -> dict:
                 skipped.append(pdf_file)
                 continue
             chunks = splitter.split_text(text)
-            metas = [{"source": pdf_file, "name": name, "type": "policy_pdf"} for _ in chunks]
+            metas = [{"source": pdf_file, "name": name, "type": "policy_pdf", "language": "en"} for _ in chunks]
             ids = [f"{pdf_file}_{i}" for i in range(len(chunks))]
             rag_service.add_documents_batch(documents=chunks, metadatas=metas, ids=ids)
             total_chunks += len(chunks)

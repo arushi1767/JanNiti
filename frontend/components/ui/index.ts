@@ -1,4 +1,4 @@
-export { Card, CardHeader, CardTitle, CardContent } from './Card'
+export { Card, CardTitle, CardContent } from './Card'
 export { Badge } from './Badge'
 export { Button } from './Button'
 export { Input } from './Input'

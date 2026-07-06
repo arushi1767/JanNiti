@@ -7,18 +7,9 @@ import base64
 logger = logging.getLogger("janniti.voice")
 
 LANGUAGE_MAP = {
-    "en": "en",
-    "hi": "hi",
-    "bn": "bn",
-    "te": "te",
-    "ta": "ta",
-    "mr": "mr",
-    "gu": "gu",
-    "kn": "kn",
-    "ml": "ml",
-    "pa": "pa",
-    "or": "or",
-    "as": "as",
+    "en": "en", "hi": "hi", "bn": "bn", "te": "te", "ta": "ta",
+    "mr": "mr", "gu": "gu", "kn": "kn", "ml": "ml", "pa": "pa",
+    "or": "or", "as": "as", "ur": "ur", "ks": "ur", "mai": "hi",
 }
 
 # Try to set up OpenAI client only if key is available

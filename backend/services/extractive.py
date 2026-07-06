@@ -9,7 +9,7 @@ retrieved chunks. When the LLM *is* available it still takes over and writes a
 polished, translated answer; this is the graceful floor beneath it.
 """
 import re
-from typing import List, Optional
+from typing import List
 
 _SENT = re.compile(r"(?<=[.!?])\s+|\n+")
 

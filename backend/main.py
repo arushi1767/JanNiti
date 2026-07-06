@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import config
-from routers import explainer, chat, compare, dashboard, voice, transliterate
+from routers import explainer, chat, compare, dashboard, voice, transliterate, questions
 
 app = FastAPI(
     title="JanNiti - India's Policy Literacy Platform",
@@ -31,6 +31,7 @@ app.include_router(compare.router)
 app.include_router(dashboard.router)
 app.include_router(voice.router)
 app.include_router(transliterate.router)
+app.include_router(questions.router)
 
 
 @app.on_event("startup")

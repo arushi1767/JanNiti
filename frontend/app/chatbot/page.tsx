@@ -8,7 +8,36 @@ import { chatWithAI } from '@/lib/api'
 import { useI18n } from '@/lib/i18n'
 import { trackChat } from '@/lib/services/activity'
 import { Send, Loader2, Bot, User, Shield, AlertTriangle, Volume2 } from 'lucide-react'
+<<<<<<< HEAD
 import { cn, getConfidenceColor } from '@/lib/utils'
+=======
+import { cn, getConfidenceColor, apiFetch } from '@/lib/utils'
+
+const LANG_MAP: Record<string, string> = {
+  en: 'en-IN', hi: 'hi-IN', bn: 'bn-IN', ta: 'ta-IN',
+  te: 'te-IN', mr: 'mr-IN', gu: 'gu-IN', kn: 'kn-IN',
+  ml: 'ml-IN', pa: 'pa-IN', or: 'or-IN', as: 'as-IN',
+  ur: 'ur-IN', ks: 'ks-IN', mai: 'mai-IN',
+}
+
+const LANG_NAMES: Record<string, string[]> = {
+  en: ['en', 'english'],
+  hi: ['hi', 'hindi'],
+  bn: ['bn', 'bengali', 'bangla'],
+  ta: ['ta', 'tamil'],
+  te: ['te', 'telugu'],
+  mr: ['mr', 'marathi'],
+  gu: ['gu', 'gujarati'],
+  kn: ['kn', 'kannada'],
+  ml: ['ml', 'malayalam'],
+  pa: ['pa', 'punjabi'],
+  or: ['or', 'odia', 'oriya'],
+  as: ['as', 'assamese'],
+  ur: ['ur', 'urdu'],
+  ks: ['ks', 'kashmiri'],
+  mai: ['mai', 'maithili'],
+}
+>>>>>>> 7a88719 (Improve multilingual pipeline, translation, and UI)
 
 const LANG_MAP: Record<string, string> = {
   en: 'en-IN',
@@ -34,9 +63,7 @@ interface Message {
 
 export default function ChatbotPage() {
   const { lang, t } = useI18n()
-  const SUGGESTED_QUESTIONS = [
-    t('chat_q1'), t('chat_q2'), t('chat_q3'), t('chat_q4'), t('chat_q5'), t('chat_q6'),
-  ]
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: t('chat_greeting') },
   ])
@@ -64,6 +91,23 @@ export default function ChatbotPage() {
   }, [])
 
   useEffect(() => {
+<<<<<<< HEAD
+=======
+    apiFetch('/api/questions/suggested?count=6')
+      .then((res: any) => {
+        if (res?.questions) setSuggestedQuestions(res.questions)
+      })
+      .catch(() => {
+        setSuggestedQuestions([
+          'What is PM-KISAN?', 'Do I qualify for Ayushman Bharat?',
+          'How to apply for Atal Pension Yojana?', 'Tell me about MUDRA loan',
+          'What is the catch in PM Awas Yojana?', 'How to apply for PM Ujjwala Yojana?',
+        ])
+      })
+  }, [])
+
+  useEffect(() => {
+>>>>>>> 7a88719 (Improve multilingual pipeline, translation, and UI)
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
@@ -268,7 +312,7 @@ export default function ChatbotPage() {
           {t('chat_try_asking')}
         </h3>
         <div className="flex flex-wrap gap-2">
-          {SUGGESTED_QUESTIONS.map((q, i) => (
+          {suggestedQuestions.map((q, i) => (
             <button
               key={i}
               onClick={() => { setInput(q) }}

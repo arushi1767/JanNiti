@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from services.voice_service import speech_to_text, text_to_speech
 from pydantic import BaseModel
 from utils.response import success_response, error_response
+from utils.language import validate_language
 
 logger = logging.getLogger("janniti.voice")
 router = APIRouter(prefix="/api/voice", tags=["Voice"])
@@ -14,6 +15,7 @@ class TTSRequest(BaseModel):
 @router.post("/stt")
 async def stt(audio: UploadFile = File(...), language: str = Form("en")):
     try:
+        validate_language(language)
         audio_bytes = await audio.read()
         text = await speech_to_text(audio_bytes, language)
         return success_response({"text": text})
@@ -26,6 +28,7 @@ async def stt(audio: UploadFile = File(...), language: str = Form("en")):
 @router.post("/tts")
 async def tts(request: TTSRequest):
     try:
+        validate_language(request.language)
         audio_b64 = await text_to_speech(request.text, request.language)
         if audio_b64:
             return success_response({"audio": audio_b64, "format": "mp3"})

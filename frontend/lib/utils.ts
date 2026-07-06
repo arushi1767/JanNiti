@@ -8,8 +8,19 @@ export function cn(...inputs: ClassValue[]) {
 export const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English' },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ' },
+  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া' },
   { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
   { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو' },
+  { code: 'ks', name: 'Kashmiri', nativeName: 'كٲشُر' },
+  { code: 'mai', name: 'Maithili', nativeName: 'मैथिली' },
 ]
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'

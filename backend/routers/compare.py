@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from models.schemas import CompareRequest, RecommendRequest
 from services.ai_service import compare_schemes, recommend_for_profile
 from utils.response import success_response, error_response
+from utils.language import validate_language
 
 logger = logging.getLogger("janniti.compare")
 router = APIRouter(prefix="/api/compare", tags=["Compare"])
@@ -10,6 +11,7 @@ router = APIRouter(prefix="/api/compare", tags=["Compare"])
 @router.post("/")
 async def compare(request: CompareRequest):
     try:
+        validate_language(request.language)
         result = compare_schemes(request.scheme1, request.scheme2, request.language)
         return success_response(result)
     except HTTPException:
@@ -22,6 +24,7 @@ async def compare(request: CompareRequest):
 @router.post("/recommend")
 async def recommend(request: RecommendRequest):
     try:
+        validate_language(request.language)
         result = recommend_for_profile(request.scheme1, request.scheme2, request.profile, request.language)
         return success_response(result)
     except HTTPException:
